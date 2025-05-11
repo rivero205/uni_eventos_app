@@ -42,11 +42,12 @@ Editar
 
 ## 🔧 Instalación
 
-```bash
+```
 git clone https://github.com/tu-usuario/unieventos.git
 cd unieventos
 flutter pub get
 flutter run
+```
 📂 Integración Firebase
 Crea un proyecto en Firebase Console
 
