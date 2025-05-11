@@ -20,6 +20,7 @@ Aplicación móvil desarrollada en Flutter que permite a estudiantes visualizar 
 
 ## 👨‍💻 Estructura del Proyecto
 
+```
 lib/
 ├── main.dart
 ├── models/ # Modelos de datos (Usuario, Evento, Inscripción)
@@ -27,7 +28,7 @@ lib/
 ├── controllers/ # Lógica y conexión con Firebase
 ├── services/ # Servicios (Auth, Eventos)
 └── widgets/ # Componentes reutilizables
-
+```
 markdown
 Copiar
 Editar
