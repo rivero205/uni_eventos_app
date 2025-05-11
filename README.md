@@ -57,9 +57,6 @@ Crea Firestore y estructura básica de colecciones
 
 Agrega el archivo google-services.json en android/app/
 
-👥 Equipo de Desarrollo – UniEventos
-
-🧠 Maicol Vivero 
-💻 David Mejía
-🔧 Jesús Zabala
-🎨 Luis Ibarra
+### 👥 Equipo de Desarrollo – UniEventos
+| 🧠 Maicol Vivero | 💻 David Mejía | 🔧 Jesús Zabala | 🎨 Luis Ibarra |
+|------------------|----------------|------------------|----------------|
