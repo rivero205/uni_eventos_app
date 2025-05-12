@@ -69,7 +69,7 @@ class HomeScreen extends StatelessWidget {
                       child: OutlinedButton(
                         onPressed: () {
                          
-                          context.go('/signup');
+                          context.go('/registro');
                         },
                         style: OutlinedButton.styleFrom(
                           backgroundColor: Colors.black,

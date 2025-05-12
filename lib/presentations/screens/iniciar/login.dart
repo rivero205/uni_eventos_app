@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -6,6 +7,17 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+ appBar: AppBar(
+        backgroundColor: Color(0xFF0288D1),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color.fromARGB(255, 250, 249, 249)),
+          onPressed: () {
+            context.push('/');
+          },
+        ),
+      ),
+
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -83,7 +95,9 @@ class LoginScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
-                    // Aquí irá la navegación a la pantalla de registro
+
+                    context.go('/registro');
+
                   },
                   child: const Text(
                     'No tienes cuenta? Registrate',

@@ -12,5 +12,9 @@ final router = GoRouter(
       path: '/login',
       builder: (context, state) => const LoginScreen(),
     ),
+    GoRoute(
+      path: '/registro',
+      builder: (context, state) => const RegistroScreen(),
+    ),
   ]
 );
