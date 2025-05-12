@@ -73,7 +73,7 @@ class LoginScreen extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      // Aquí irá la lógica de inicio de sesión
+                     context.go('/eventos');
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,

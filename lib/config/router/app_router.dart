@@ -1,3 +1,4 @@
+// Update to lib/config/router/app_router.dart
 import 'package:go_router/go_router.dart';
 import '/presentations/screens/screen.dart';
 
@@ -15,6 +16,10 @@ final router = GoRouter(
     GoRoute(
       path: '/registro',
       builder: (context, state) => const RegistroScreen(),
+    ),
+    GoRoute(
+      path: '/eventos',
+      builder: (context, state) => const EventosScreen(),
     ),
   ]
 );
