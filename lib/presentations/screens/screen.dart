@@ -2,4 +2,5 @@
 export 'home/home_screen.dart';
 export 'iniciar/login.dart';
 export 'registro/registro_screen.dart';
-export 'eventos/eventos_screen.dart'; // Added export for eventos screen
+export 'eventos/eventos_screen.dart'; 
+export 'perfil/profile_screen.dart';

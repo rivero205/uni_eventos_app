@@ -19,7 +19,11 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/eventos',
-      builder: (context, state) => const EventosScreen(),
+      builder: (context, state) => const EventsScreen(),
     ),
+    GoRoute(
+          path: '/profile',
+          builder: (context, state) => const ProfileScreen(),
+        ),
   ]
 );

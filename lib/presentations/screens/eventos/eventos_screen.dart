@@ -1,259 +1,160 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '/models/event.dart';
+import '../widgets/bottom_nav_bar.dart';
 
-class EventosScreen extends StatelessWidget {
-  const EventosScreen({super.key});
+class EventsScreen extends StatelessWidget {
+  const EventsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Obtener lista de eventos de ejemplo
+    final events = Event.getSampleEvents();
+    
+    // El primer evento será el destacado
+    final featuredEvent = events.first;
+    
+    // El resto de eventos para la cuadrícula
+    final gridEvents = events.sublist(1);
+
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Eventos', 
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-          ),
-        ),
         backgroundColor: Colors.white,
         elevation: 0,
-        // Reemplazamos el IconButton con nuestro menú dinámico
-        leading: Builder(
-          builder: (BuildContext context) {
-            return IconButton(
-              icon: const Icon(Icons.menu, color: Colors.black),
-              onPressed: () {
-                Scaffold.of(context).openDrawer();
-              },
-            );
-          },
+        title: const Text(
+          'Eventos',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        actions: [
+          // Botón para cerrar sesión
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.black),
+            onSelected: (value) {
+              if (value == 'logout') {
+                // Navegar a la pantalla de inicio
+                context.go('/');
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'logout',
+                child: Text('Cerrar sesión'),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Subtítulo "NOVEDADES DE HOY"
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'NOVEDADES DE HOY',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              
+              // Evento destacado
+              FeaturedEventCard(event: featuredEvent),
+              
+              // Título "BROWSE ALL"
+              const Padding(
+                padding: EdgeInsets.fromLTRB(0, 16, 0, 12),
+                child: Text(
+                  'BROWSE ALL',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              
+              // Cuadrícula de eventos con tamaño más grande
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  // Usar un aspect ratio que haga las tarjetas más altas
+                  childAspectRatio: 0.75, // Más alto que ancho
+                ),
+                itemCount: gridEvents.length,
+                itemBuilder: (context, index) {
+                  return EventCard(event: gridEvents[index]);
+                },
+              ),
+              
+              // Espacio adicional al final para que no se oculte contenido detrás de la barra de navegación
+              const SizedBox(height: 60),
+            ],
+          ),
         ),
       ),
-      // Agregamos el Drawer (menú lateral)
-      drawer: const AppDrawer(),
-      body: const EventosLayout(),
+      bottomNavigationBar: const BottomNavBar(currentIndex: 0),
     );
   }
 }
 
-// Widget para el menú lateral (Drawer)
-class AppDrawer extends StatelessWidget {
-  const AppDrawer({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Drawer(
-      child: Column(
-        children: [
-          // Cabecera del drawer con información del usuario
-          UserAccountsDrawerHeader(
-            decoration: const BoxDecoration(
-              color: Color(0xFF0288D1),
-            ),
-            accountName: const Text(
-              'Usuario UniEventos',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-            accountEmail: const Text('usuario@ejemplo.com'),
-            currentAccountPicture: CircleAvatar(
-              backgroundColor: Colors.white,
-              child: Text(
-                'U',
-                style: TextStyle(
-                  fontSize: 24.0,
-                  color: Colors.blue[800],
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-          
-          // Opción de Perfil
-          ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text('Mi Perfil'),
-            onTap: () {
-              // Cerrar el drawer
-              Navigator.pop(context);
-              // Aquí iría la navegación al perfil (sin implementar)
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Funcionalidad de Perfil no implementada'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-          ),
-          
-          const Divider(),
-          
-          // Opción de Cerrar Sesión
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Cerrar Sesión'),
-            onTap: () {
-              // Cerrar el drawer
-              Navigator.pop(context);
-              // Navegar a la pantalla Home
-              context.go('/');
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class EventosLayout extends StatelessWidget {
-  const EventosLayout({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Section: News of today
-          const Padding(
-            padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
-            child: Text(
-              'NOVEDADES DE HOY',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.black54,
-              ),
-            ),
-          ),
-          
-          // Feature Event Card
-          GestureDetector(
-            onTap: () {
-              // Navigate to event details
-            },
-            child: const FeaturedEventCard(
-              imageUrl: 'assets/arquitectura_moderna.jpg',
-              title: 'Arquitectura Moderna',
-            ),
-          ),
-          
-          // Browse All Section Title
-          const Padding(
-            padding: EdgeInsets.only(left: 16, top: 20, bottom: 8),
-            child: Text(
-              'BROWSE ALL',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.black54,
-              ),
-            ),
-          ),
-          
-          // Grid of Events
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: EventsGrid(events: sampleEvents),
-          ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-}
-
+// Widget para el evento destacado
 class FeaturedEventCard extends StatelessWidget {
-  final String imageUrl;
-  final String title;
+  final Event event;
 
-  const FeaturedEventCard({
-    super.key,
-    required this.imageUrl,
-    required this.title,
-  });
+  const FeaturedEventCard({super.key, required this.event});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      width: double.infinity,
-      height: 200,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Image (using placeholder color until image is loaded)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.asset(
-              imageUrl,
+    return Column(
+      children: [
+        // Imagen del evento destacado
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: AspectRatio(
+            aspectRatio: 1.0, // Relación cuadrada para la imagen destacada
+            child: Image.network(
+              event.imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey.shade300,
-                  child: Center(
-                    child: Icon(Icons.image, size: 50, color: Colors.grey.shade600),
-                  ),
-                );
-              },
+              width: double.infinity,
             ),
           ),
-          
-          // Title overlay at the bottom
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(12),
-                  bottomRight: Radius.circular(12),
-                ),
+        ),
+        
+        // Título del evento destacado (centrado)
+        Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: Center(
+            child: Text(
+              event.title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
-              child: Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              textAlign: TextAlign.center,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class EventsGrid extends StatelessWidget {
-  final List<Event> events;
-
-  const EventsGrid({super.key, required this.events});
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.8,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: events.length,
-      itemBuilder: (context, index) {
-        return EventCard(event: events[index]);
-      },
-    );
-  }
-}
-
+// Widget para cada tarjeta de evento en la cuadrícula
 class EventCard extends StatelessWidget {
   final Event event;
 
@@ -263,42 +164,56 @@ class EventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        // Navigate to event details
+        // Navegar al detalle del evento
+        // context.go('/event/${event.id}');
       },
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Poster/Image
+          // Contenedor para la imagen
           Expanded(
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                event.imageUrl,
-                fit: BoxFit.cover,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
                 width: double.infinity,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey.shade200,
-                    child: Center(
-                      child: Icon(Icons.image, size: 40, color: Colors.grey.shade400),
-                    ),
-                  );
-                },
+                color: Colors.grey[200], // Color de fondo por si la imagen no carga
+                child: Image.network(
+                  event.imageUrl,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded / 
+                              loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Icon(Icons.error_outline, size: 30),
+                    );
+                  },
+                ),
               ),
             ),
           ),
           
-          // Title
+          // Título del evento (centrado)
           Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              event.title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Center(
+              child: Text(
+                event.title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -306,52 +221,3 @@ class EventCard extends StatelessWidget {
     );
   }
 }
-
-// Model class for events
-class Event {
-  final String title;
-  final String imageUrl;
-  final String? description;
-  final DateTime? date;
-
-  const Event({
-    required this.title,
-    required this.imageUrl,
-    this.description,
-    this.date,
-  });
-}
-
-// Sample data for events
-final List<Event> sampleEvents = [
-  const Event(
-    title: 'V Congreso',
-    imageUrl: 'assets/v_congreso.jpg',
-    description: 'Congreso de Ingeniería de Sistemas e Informática',
-  ),
-  const Event(
-    title: 'Ingeniería HOY',
-    imageUrl: 'assets/ingenieria_hoy.jpg',
-    description: 'Centro Interactivo de Ingeniería de Sistemas e Informática',
-  ),
-  const Event(
-    title: 'Sistemas Fotovoltaicos',
-    imageUrl: 'assets/sistemas_fotovoltaicos.jpg',
-    description: 'Sistemas Fotovoltaicos Aislados de la Red',
-  ),
-  const Event(
-    title: 'Sistemas de I',
-    imageUrl: 'assets/sistemas_i.jpg',
-    description: 'Conferencia sobre Sistemas de Información',
-  ),
-  const Event(
-    title: 'V Congreso',
-    imageUrl: 'assets/v_congreso.jpg',
-    description: 'Congreso de Ingeniería de Sistemas e Informática',
-  ),
-  const Event(
-    title: 'Ingeniería HOY',
-    imageUrl: 'assets/ingenieria_hoy.jpg',
-    description: 'Centro Interactivo de Ingeniería de Sistemas e Informática',
-  ),
-];
