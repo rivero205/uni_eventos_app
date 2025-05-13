@@ -16,14 +16,92 @@ class EventosScreen extends StatelessWidget {
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            context.pop();
+        // Reemplazamos el IconButton con nuestro menú dinámico
+        leading: Builder(
+          builder: (BuildContext context) {
+            return IconButton(
+              icon: const Icon(Icons.menu, color: Colors.black),
+              onPressed: () {
+                Scaffold.of(context).openDrawer();
+              },
+            );
           },
         ),
       ),
+      // Agregamos el Drawer (menú lateral)
+      drawer: const AppDrawer(),
       body: const EventosLayout(),
+    );
+  }
+}
+
+// Widget para el menú lateral (Drawer)
+class AppDrawer extends StatelessWidget {
+  const AppDrawer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      child: Column(
+        children: [
+          // Cabecera del drawer con información del usuario
+          UserAccountsDrawerHeader(
+            decoration: const BoxDecoration(
+              color: Color(0xFF0288D1),
+            ),
+            accountName: const Text(
+              'Usuario UniEventos',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            accountEmail: const Text('usuario@ejemplo.com'),
+            currentAccountPicture: CircleAvatar(
+              backgroundColor: Colors.white,
+              child: Text(
+                'U',
+                style: TextStyle(
+                  fontSize: 24.0,
+                  color: Colors.blue[800],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          
+          // Opción de Perfil
+          ListTile(
+            leading: const Icon(Icons.person),
+            title: const Text('Mi Perfil'),
+            onTap: () {
+              // Cerrar el drawer
+              Navigator.pop(context);
+              // Aquí iría la navegación al perfil (sin implementar)
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Funcionalidad de Perfil no implementada'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+          
+          const Divider(),
+          
+          // Opción de Cerrar Sesión
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: const Text('Cerrar Sesión'),
+            onTap: () {
+              // Cerrar el drawer
+              Navigator.pop(context);
+              // Navegar a la pantalla Home
+              context.go('/');
+            },
+          ),
+        ],
+      ),
     );
   }
 }
