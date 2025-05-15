@@ -1,7 +1,7 @@
 // registro_screen.dart
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-// import 'package:firebase_auth/firebase_auth.dart'; // <--- Eliminado
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart'; // Importar GoRouter
 
 class RegistroScreen extends StatefulWidget {
   const RegistroScreen({super.key});
@@ -16,11 +16,10 @@ class _RegistroScreenState extends State<RegistroScreen> {
   final TextEditingController _carreraController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
 
   bool _isLoading = false;
-  String? _errorMessage; // Puede usarse para errores generales de frontend
+  String? _errorMessage;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
@@ -34,58 +33,71 @@ class _RegistroScreenState extends State<RegistroScreen> {
     super.dispose();
   }
 
-  // --- Modificado para quitar lógica de backend ---
-  Future<void> _handleCrearCuentaFrontend() async {
-    FocusScope.of(context).unfocus(); // Ocultar teclado
-
-    // Validar el formulario usando las reglas definidas en cada TextFormField
+  Future<void> _crearCuenta() async {
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) {
-      // La validación falló, los mensajes de error se mostrarán en los campos
-      setState(() {
-        // Opcional: Mostrar un mensaje de error general si se desea
-        // _errorMessage = 'Por favor, revisa los campos marcados.';
-      });
-      return; // No continuar
+      return;
     }
 
-    // --- Simulación de "éxito" de frontend ---
-    // Si la validación pasa, mostramos el indicador de carga
     setState(() {
       _isLoading = true;
-      _errorMessage = null; // Limpiar errores previos
+      _errorMessage = null;
     });
 
-    // Simular un pequeño retraso (como si hubiera una llamada de red)
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Acciones después de la validación "exitosa" (sin backend real)
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Validación completada (simulado).',
-          ), // Mensaje temporal
-          backgroundColor: Colors.blue,
-        ),
+    try {
+      // ignore: unused_local_variable
+      UserCredential userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
       );
-      // Limpiar campos como demostración
-      _formKey.currentState!.reset();
-      _nombreController.clear();
-      _carreraController.clear();
-      _emailController.clear();
-      _passwordController.clear();
-      _confirmPasswordController.clear();
 
-      // Detener el indicador de carga
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cuenta creada exitosamente.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _formKey.currentState!.reset();
+        _nombreController.clear();
+        _carreraController.clear();
+        _emailController.clear();
+        _passwordController.clear();
+        _confirmPasswordController.clear();
+        // Opcional: if (mounted) context.go('/');
+      }
+    } on FirebaseAuthException catch (e) {
+      String message;
+      switch (e.code) {
+        case 'weak-password':
+          message = 'La contraseña proporcionada es demasiado débil.';
+          break;
+        case 'email-already-in-use':
+          message = 'Ya existe una cuenta para ese correo electrónico.';
+          break;
+        case 'invalid-email':
+          message = 'El formato del correo electrónico no es válido.';
+          break;
+        default:
+          message = 'Ocurrió un error de autenticación. Inténtalo de nuevo.';
+      }
       setState(() {
-        _isLoading = false;
+        _errorMessage = message;
       });
-      // Aquí es donde luego añadirías la llamada a Firebase u otro backend
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Ocurrió un error inesperado. Por favor, inténtalo más tarde.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
-    // --- Fin de la simulación ---
   }
 
-  // Helper para construir los campos de texto (sin cambios)
   Widget _buildTextField({
     required TextEditingController controller,
     required String labelText,
@@ -103,14 +115,13 @@ class _RegistroScreenState extends State<RegistroScreen> {
         decoration: InputDecoration(
           labelText: labelText,
           border: const OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(4.0)),
-            borderSide: BorderSide(color: Colors.black),
+             borderRadius: BorderRadius.all(Radius.circular(4.0)),
+             borderSide: BorderSide(color: Colors.black),
           ),
           focusedBorder: const OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(4.0)),
-            borderSide: BorderSide(color: Colors.black, width: 1.5),
+             borderRadius: BorderRadius.all(Radius.circular(4.0)),
+             borderSide: BorderSide(color: Colors.black, width: 1.5),
           ),
-          labelStyle: const TextStyle(color: Colors.black54),
           suffixIcon: suffixIcon,
         ),
         validator: validator,
@@ -121,19 +132,20 @@ class _RegistroScreenState extends State<RegistroScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // La estructura del build se mantiene igual, solo cambia la función llamada por onPressed
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            context.push('/');
+            context.go('/');
           },
         ),
+        
       ),
-      backgroundColor: Colors.white,
+      
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -142,17 +154,11 @@ class _RegistroScreenState extends State<RegistroScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Text(
+                Text(
                   'Registro',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+                  style: textTheme.titleMedium,
                 ),
                 const SizedBox(height: 24.0),
-
-                // --- Campos de Texto con sus validaciones ---
                 _buildTextField(
                   controller: _nombreController,
                   labelText: 'Nombre completo',
@@ -196,22 +202,21 @@ class _RegistroScreenState extends State<RegistroScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Por favor, ingresa una contraseña';
                     }
-                    if (value.length < 6) {
-                      return 'La contraseña debe tener al menos 6 caracteres';
+                    if (value.length < 8) {
+                      return 'La contraseña debe tener al menos 8 caracteres';
                     }
                     return null;
                   },
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
                       color: Colors.grey,
                     ),
-                    onPressed:
-                        () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                        ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
                   ),
                 ),
                 _buildTextField(
@@ -229,58 +234,41 @@ class _RegistroScreenState extends State<RegistroScreen> {
                   },
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscureConfirmPassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
+                      _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
                       color: Colors.grey,
                     ),
-                    onPressed:
-                        () => setState(
-                          () =>
-                              _obscureConfirmPassword =
-                                  !_obscureConfirmPassword,
-                        ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureConfirmPassword = !_obscureConfirmPassword;
+                      });
+                    },
                   ),
                 ),
-
-                // --- Fin de Campos de Texto ---
                 const SizedBox(height: 16.0),
                 if (_errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12.0),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(color: Colors.red, fontSize: 14),
                       textAlign: TextAlign.center,
+                      style: TextStyle(color: colorScheme.error),
                     ),
                   ),
                 const SizedBox(height: 12.0),
-
-                // Botón llama a la función de frontend ahora
                 _isLoading
-                    ? const Center(
-                      child: CircularProgressIndicator(color: Colors.black),
-                    )
+                    ? const Center(child: CircularProgressIndicator())
                     : SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        // Llama a la nueva función sin backend
-                        onPressed: _handleCrearCuentaFrontend,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16.0),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4.0),
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _crearCuenta,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white, 
+                            
                           ),
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          child: const Text('CREAR CUENTA'), // Estilo de texto del tema
                         ),
-                        child: const Text('CREAR CUENTA'),
                       ),
-                    ),
               ],
             ),
           ),
