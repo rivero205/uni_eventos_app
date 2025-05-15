@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  String _selectedRole = 'Usuario'; // Valor predeterminado
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
- appBar: AppBar(
+      appBar: AppBar(
         backgroundColor: Color(0xFF0288D1),
         elevation: 0,
         leading: IconButton(
@@ -68,12 +75,57 @@ class LoginScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+                
+                // Selector de rol
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: _selectedRole,
+                      icon: const Icon(Icons.arrow_drop_down),
+                      elevation: 16,
+                      style: const TextStyle(color: Colors.black),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _selectedRole = newValue;
+                          });
+                        }
+                      },
+                      items: <String>['Usuario', 'Administrador']
+                          .map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Row(
+                            children: [
+                              Icon(
+                                value == 'Administrador' 
+                                    ? Icons.admin_panel_settings 
+                                    : Icons.person,
+                                color: Colors.grey,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(value),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+                
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                     context.go('/eventos');
+                      context.go('/eventos');
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
@@ -95,9 +147,7 @@ class LoginScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
-
                     context.go('/registro');
-
                   },
                   child: const Text(
                     'No tienes cuenta? Registrate',
