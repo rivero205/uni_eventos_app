@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'config/router/app_router.dart';
 import 'config/theme/app_theme.dart';
