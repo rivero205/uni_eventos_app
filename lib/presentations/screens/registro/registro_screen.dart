@@ -125,7 +125,6 @@ class _RegistroScreenState extends State<RegistroScreen> {
           suffixIcon: suffixIcon,
         ),
         validator: validator,
-        autovalidateMode: AutovalidateMode.onUserInteraction,
       ),
     );
   }
