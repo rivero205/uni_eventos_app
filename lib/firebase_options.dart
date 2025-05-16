@@ -14,17 +14,11 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-            'DefaultFirebaseOptions have not been configured for ios - '
-            'you can reconfigure this by running the FlutterFire CLI again.');
+        return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-            'DefaultFirebaseOptions have not been configured for macos - '
-            'you can reconfigure this by running the FlutterFire CLI again.');
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-            'DefaultFirebaseOptions have not been configured for windows - '
-            'you can reconfigure this by running the FlutterFire CLI again.');
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
             'DefaultFirebaseOptions have not been configured for linux - '
@@ -52,4 +46,33 @@ class DefaultFirebaseOptions {
     storageBucket: 'unieventosapp.firebasestorage.app',
     measurementId: 'G-8SJ6EPY6Z1',
   );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyCntdh3qI9yzqj-ka49tjZo0N38yPdPxaA',
+    appId: '1:658701940288:ios:87a4806bc862979c8c11a5',
+    messagingSenderId: '658701940288',
+    projectId: 'unieventosapp',
+    storageBucket: 'unieventosapp.firebasestorage.app',
+    iosBundleId: 'com.yourdomain.myapp',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyCntdh3qI9yzqj-ka49tjZo0N38yPdPxaA',
+    appId: '1:658701940288:ios:87a4806bc862979c8c11a5',
+    messagingSenderId: '658701940288',
+    projectId: 'unieventosapp',
+    storageBucket: 'unieventosapp.firebasestorage.app',
+    iosBundleId: 'com.yourdomain.myapp',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyBR2nOiFMWM2hs7PAFSTSMr0cLzEpg7sTI',
+    appId: '1:658701940288:web:f65ec3b50c651f188c11a5',
+    messagingSenderId: '658701940288',
+    projectId: 'unieventosapp',
+    authDomain: 'unieventosapp.firebaseapp.com',
+    storageBucket: 'unieventosapp.firebasestorage.app',
+    measurementId: 'G-GQEM0DRCSK',
+  );
+
 }

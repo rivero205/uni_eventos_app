@@ -1,4 +1,5 @@
 // registro_screen.dart
+import 'package:cloud_firestore/cloud_firestore.dart'; // Importar Cloud Firestore
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart'; // Importar GoRouter
@@ -45,12 +46,23 @@ class _RegistroScreenState extends State<RegistroScreen> {
     });
 
     try {
-      // ignore: unused_local_variable
       UserCredential userCredential =
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+
+      // Guardar datos adicionales del usuario en Firestore
+      if (userCredential.user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+          'nombre': _nombreController.text.trim(),
+          'carrera': _carreraController.text.trim(),
+          'email': _emailController.text.trim(),
+          'uid': userCredential.user!.uid,
+          // Puedes agregar más campos aquí, como la fecha de creación
+          'createdAt': Timestamp.now(),
+        });
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
