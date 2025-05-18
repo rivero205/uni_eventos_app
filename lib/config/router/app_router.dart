@@ -1,6 +1,7 @@
 // Update to lib/config/router/app_router.dart
 import 'package:go_router/go_router.dart';
 import '/presentations/screens/screen.dart';
+import '/presentations/screens/eventos/event_detail_screen.dart';
 
 
 final router = GoRouter(
@@ -22,8 +23,15 @@ final router = GoRouter(
       builder: (context, state) => const EventsScreen(),
     ),
     GoRoute(
-          path: '/profile',
-          builder: (context, state) => const ProfileScreen(),
-        ),
+      path: '/profile',
+      builder: (context, state) => const ProfileScreen(),
+    ),
+    GoRoute(
+      path: '/event/:id',
+      builder: (context, state) {
+        final eventId = state.pathParameters['id'] ?? '';
+        return EventDetailScreen(eventId: eventId);
+      },
+    ),
   ]
 );

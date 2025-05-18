@@ -69,7 +69,13 @@ class EventsScreen extends StatelessWidget {
               ),
               
               // Evento destacado
-              FeaturedEventCard(event: featuredEvent),
+              GestureDetector(
+                onTap: () {
+                  // Navegar al detalle del evento destacado
+                  context.go('/event/${featuredEvent.id}');
+                },
+                child: FeaturedEventCard(event: featuredEvent),
+              ),
               
               // Título "BROWSE ALL"
               const Padding(
@@ -165,7 +171,7 @@ class EventCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         // Navegar al detalle del evento
-        // context.go('/event/${event.id}');
+        context.go('/event/${event.id}');
       },
       child: Column(
         children: [
