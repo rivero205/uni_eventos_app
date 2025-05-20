@@ -1,4 +1,3 @@
-// lib/models/event.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Event {
@@ -84,7 +83,8 @@ class Event {
     );
   }
 
-  // Método para crear eventos de ejemplo (conservado de tu código original)
+  // Método para crear eventos de ejemplo - mantenido por compatibilidad, pero ahora se usa desde EventService  // DEPRECATED: Método para crear eventos de ejemplo 
+  // Este método es mantenido por compatibilidad pero se recomienda usar getEventsFromFirestore()
   static List<Event> getSampleEvents() {
     return [
       Event(
@@ -97,6 +97,7 @@ class Event {
         organizerId: 'admin123',
         createdAt: Timestamp.now(),
       ),
+      // Eventos reducidos para tener datos de respaldo en caso de fallo
       Event(
         id: '2',
         title: 'V Congreso',
@@ -107,36 +108,31 @@ class Event {
         organizerId: 'admin123',
         createdAt: Timestamp.now(),
       ),
-      Event(
-        id: '3',
-        title: 'Ingeniería HOY',
-        imageUrl: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?q=80&w=2070',
-        date: Timestamp.fromDate(DateTime(2025, 5, 25)),
-        location: 'Facultad de Ingeniería',
-        description: 'Exposición de proyectos innovadores desarrollados por estudiantes de ingeniería.',
-        organizerId: 'admin123',
-        createdAt: Timestamp.now(),
-      ),
-      Event(
-        id: '4',
-        title: 'Sistemas Fotovoltaicos',
-        imageUrl: 'https://images.unsplash.com/photo-1509391366360-2e959784a276?q=80&w=2072',
-        date: Timestamp.fromDate(DateTime(2025, 5, 30)),
-        location: 'Laboratorio de Energías',
-        description: 'Taller práctico sobre instalación y mantenimiento de sistemas fotovoltaicos.',
-        organizerId: 'admin123',
-        createdAt: Timestamp.now(),
-      ),
-      Event(
-        id: '5',
-        title: 'Congreso',
-        imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?q=80&w=2070',
-        date: Timestamp.fromDate(DateTime(2025, 6, 5)),
-        location: 'Facultad de Ciencias',
-        description: 'Presentación de avances en biotecnología aplicada a la medicina y agricultura.',
-        organizerId: 'admin123',
-        createdAt: Timestamp.now(),
-      ),
     ];
+  }
+  
+  // Método para obtener eventos desde Firestore
+  static Future<List<Event>> getEventsFromFirestore() async {
+    try {
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('events')
+          .orderBy('date', descending: false)
+          .get();
+          
+      List<Event> events = snapshot.docs
+          .map((doc) => Event.fromFirestore(doc))
+          .toList();
+          
+      // Si no hay eventos en Firestore, usar datos de ejemplo
+      if (events.isEmpty) {
+        return getSampleEvents();
+      }
+      
+      return events;
+    } catch (e) {
+      print('Error al cargar eventos de Firestore: $e');
+      // En caso de error, devolver datos de ejemplo como fallback
+      return getSampleEvents();
+    }
   }
 }

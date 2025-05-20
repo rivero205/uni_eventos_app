@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '/models/event.dart';
-import '../widgets/bottom_nav_bar.dart';
-import '../widgets/succes_dialog.dart';
 import 'package:go_router/go_router.dart';
+import '/models/event.dart';
+import '/services/event_service.dart';
+import '/presentations/widgets/bottom_nav_bar.dart';
+import '/presentations/widgets/success_dialog.dart';
+import '/presentations/widgets/event/event_detail_header.dart';
+import '/presentations/widgets/event/event_info_row.dart';
+import '/presentations/widgets/event/attend_event_button.dart';
+import '/presentations/widgets/event/related_events_list.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final String eventId;
@@ -20,7 +25,9 @@ class EventDetailScreen extends StatefulWidget {
 }
 
 class _EventDetailScreenState extends State<EventDetailScreen> {
+  late EventService _eventService;
   late Event event;
+  List<Event> relatedEvents = [];
   bool isLoading = true;
   bool isAttending = false;
   bool isProcessing = false;
@@ -28,68 +35,40 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _eventService = EventService();
     _loadEventDetails();
   }
+
   Future<void> _loadEventDetails() async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
-      Event? foundEvent;
-      bool userIsAttending = false;
       
-      // Primero intentamos cargar el evento desde Firestore
-      try {
-        final eventDoc = await FirebaseFirestore.instance
-            .collection('events')
-            .doc(widget.eventId)
-            .get();
-            
-        if (eventDoc.exists) {
-          foundEvent = Event.fromFirestore(eventDoc);
-          // Verificar si el usuario está en la lista de asistentes
-          userIsAttending = foundEvent.attendees?.contains(currentUser?.uid) ?? false;
-        }
-      } catch (firestoreError) {
-        print('Error al cargar el evento desde Firestore: $firestoreError');
-        // Si hay error, continuamos con eventos de muestra
+      // Cargar el evento por ID
+      final foundEvent = await _eventService.getEventById(widget.eventId);
+      
+      if (foundEvent == null) {
+        throw Exception('Evento no encontrado');
       }
       
-      // Si no encontramos en Firestore, usar eventos de muestra como respaldo
-      if (foundEvent == null) {
-        final events = Event.getSampleEvents();
-        foundEvent = events.firstWhere(
-          (e) => e.id == widget.eventId,
-          orElse: () => throw Exception('Evento no encontrado'),
+      // Verificar si el usuario está asistiendo
+      bool userIsAttending = false;
+      if (currentUser != null) {
+        userIsAttending = await _eventService.isUserAttendingEvent(
+          currentUser.uid, 
+          widget.eventId
         );
-        
-        // Verificar si el usuario está en la lista de asistentes
-        userIsAttending = foundEvent.attendees?.contains(currentUser?.uid) ?? false;
-        
-        // Como estamos usando un evento de muestra, vamos a verificar también si el usuario 
-        // tiene este evento en su lista de eventos a los que asiste en Firestore
-        if (currentUser != null) {
-          try {
-            final userDoc = await FirebaseFirestore.instance
-                .collection('users')
-                .doc(currentUser.uid)
-                .get();
-                
-            if (userDoc.exists) {
-              final userData = userDoc.data();
-              final List<String> userEventsAttending = userData?['eventsAttending'] != null 
-                  ? List<String>.from(userData?['eventsAttending']) 
-                  : [];
-                  
-              userIsAttending = userEventsAttending.contains(widget.eventId);
-            }
-          } catch (userError) {
-            print('Error al verificar eventos del usuario: $userError');
-          }
-        }
+      }      // Cargar eventos relacionados (excluyendo el evento actual)
+      final loadedRelatedEvents = await _eventService.getRelatedEvents(widget.eventId);
+      
+      // Verificar que los eventos relacionados tienen ID válidos
+      for (var relEvent in loadedRelatedEvents) {
+        print('Evento relacionado: ${relEvent.title}, ID: ${relEvent.id}');
       }
       
       if (mounted) {
         setState(() {
-          event = foundEvent!;
+          event = foundEvent;
+          relatedEvents = loadedRelatedEvents;
           isAttending = userIsAttending;
           isLoading = false;
         });
@@ -99,7 +78,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         setState(() {
           isLoading = false;
         });
-          // Mostrar mensaje de error con diálogo
+        // Mostrar mensaje de error con diálogo
         showDialog(
           context: context,
           builder: (BuildContext context) {
@@ -118,8 +97,41 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       }
     }
   }
+
   Future<void> _toggleAttendance() async {
     if (isProcessing) return;
+    
+    // Si el usuario ya está asistiendo, mostrar diálogo de confirmación antes de cancelar
+    if (isAttending) {
+      final bool? confirm = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Confirmar cancelación'),
+            content: const Text('¿Estás seguro de que deseas cancelar tu asistencia a este evento?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('No, mantener registro'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Sí, cancelar'),
+              ),
+            ],
+          );
+        },
+      );
+      
+      // Si el usuario cancela o cierra el diálogo, no hacer nada
+      if (confirm != true) {
+        return;
+      }
+    }
     
     setState(() {
       isProcessing = true;
@@ -127,7 +139,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser == null) {
+      if (currentUser == null) {
         showDialog(
           context: context,
           builder: (BuildContext context) {
@@ -146,92 +158,27 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         return;
       }
       
-      // Usar una transacción para actualizar tanto el documento del evento como el del usuario
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        // Referencias a los documentos del evento y del usuario
-        final eventRef = FirebaseFirestore.instance.collection('events').doc(widget.eventId);
-        final userRef = FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
-        
-        // Obtener los documentos actuales
-        final eventDoc = await transaction.get(eventRef);
-        final userDoc = await transaction.get(userRef);
-        
-        // Verificar si los eventos están en la base de datos real o son ejemplos
-        if (!eventDoc.exists && event.id != null) {
-          // En caso de que estemos usando eventos de ejemplo, crearlos en Firestore
-          final eventData = event.toJson();
-          eventData['id'] = event.id; // Añadir el ID explícitamente
-          transaction.set(eventRef, eventData);
-        }
-        
-        // Preparar las actualizaciones
-        final bool willAttend = !isAttending;
-        
-        // Actualizar la lista de asistentes del evento
-        List<String> updatedEventAttendees = event.attendees?.toList() ?? [];
-        
-        if (willAttend) {
-          if (!updatedEventAttendees.contains(currentUser.uid)) {
-            updatedEventAttendees.add(currentUser.uid);
-          }
-        } else {
-          updatedEventAttendees.remove(currentUser.uid);
-        }
-        
-        // Actualizar el documento del evento en Firestore
-        transaction.update(eventRef, {
-          'attendees': updatedEventAttendees
-        });
-        
-        // Actualizar el perfil del usuario
-        List<String> userEventsAttending = [];
-        
-        if (userDoc.exists) {
-          final userData = userDoc.data();
-          userEventsAttending = userData?['eventsAttending'] != null 
-              ? List<String>.from(userData?['eventsAttending']) 
-              : [];
-        }
-        
-        if (willAttend) {
-          if (!userEventsAttending.contains(widget.eventId)) {
-            userEventsAttending.add(widget.eventId);
-          }
-        } else {
-          userEventsAttending.remove(widget.eventId);
-        }
-        
-        // Actualizar el documento del usuario en Firestore
-        if (userDoc.exists) {
-          transaction.update(userRef, {
-            'eventsAttending': userEventsAttending
-          });
-        } else {
-          // Si por alguna razón el usuario no existe en la base de datos
-          transaction.set(userRef, {
-            'eventsAttending': userEventsAttending,
-            'nombre': currentUser.displayName ?? '',
-            'email': currentUser.email ?? '',
-            'photoUrl': currentUser.photoURL,
-            'createdAt': Timestamp.now()
-          });
-        }
-      });
+      // Usar el servicio para actualizar la asistencia
+      await _eventService.toggleEventAttendance(
+        currentUser.uid,
+        widget.eventId,
+        event,
+        isAttending
+      );
       
-      // Actualizar el estado local después de la operación exitosa en la BD
+      // Actualizar el estado local
+      final updatedAttendees = event.attendees?.toList() ?? [];
+      
+      if (!isAttending) {
+        if (!updatedAttendees.contains(currentUser.uid)) {
+          updatedAttendees.add(currentUser.uid);
+        }
+      } else {
+        updatedAttendees.remove(currentUser.uid);
+      }
+      
       setState(() {
         isAttending = !isAttending;
-        
-        // Actualizar la lista de asistentes
-        List<String> updatedAttendees = event.attendees?.toList() ?? [];
-        
-        if (isAttending) {
-          if (!updatedAttendees.contains(currentUser.uid)) {
-            updatedAttendees.add(currentUser.uid);
-          }
-        } else {
-          updatedAttendees.remove(currentUser.uid);
-        }
         
         // Actualizar el objeto evento con la nueva lista de asistentes
         event = Event(
@@ -250,29 +197,32 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       });
       
       // Mostrar diálogo de éxito personalizado
-      SuccessDialog.show(
-        context: context,
-        message: isAttending ? '¡Te has inscrito al evento!' : 'Has cancelado tu asistencia',
-        okText: 'Aceptar',
-      );
-      
+      if (mounted) {
+        SuccessDialog.show(
+          context: context,
+          message: isAttending ? '¡Te has inscrito al evento!' : 'Has cancelado tu asistencia',
+          okText: 'Aceptar',
+        );
+      }
     } catch (e) {
       // Mostrar diálogo de error
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Error'),
-            content: Text('Error: $e'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Aceptar'),
-              ),
-            ],
-          );
-        },
-      );
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Error'),
+              content: Text('Error: $e'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Aceptar'),
+                ),
+              ],
+            );
+          },
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -302,7 +252,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       appBar: AppBar(
         title: const Text('Detalles del Evento'),
         elevation: 0,
-        // Agregamos el botón de regreso explícitamente
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -315,22 +264,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Imagen del evento
-            SizedBox(
-              width: double.infinity,
-              height: 250,
-              child: Image.network(
-                event.imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[300],
-                    child: const Center(
-                      child: Icon(Icons.error_outline, size: 50),
-                    ),
-                  );
-                },
-              ),
-            ),
+            EventDetailHeader(event: event),
             
             // Contenido del evento
             Padding(
@@ -350,22 +284,31 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   const SizedBox(height: 16),
                   
                   // Fecha y ubicación
-                  _buildInfoRow(Icons.calendar_today, 'Fecha: $formattedDate'),
+                  EventInfoRow(
+                    icon: Icons.calendar_today,
+                    text: 'Fecha: $formattedDate'
+                  ),
                   const SizedBox(height: 8),
-                  _buildInfoRow(Icons.location_on, 'Ubicación: ${event.location}'),
+                  EventInfoRow(
+                    icon: Icons.location_on,
+                    text: 'Ubicación: ${event.location}'
+                  ),
                   
                   // Si hay categoría, mostrarla
                   if (event.category != null) ...[
                     const SizedBox(height: 8),
-                    _buildInfoRow(Icons.category, 'Categoría: ${event.category}'),
+                    EventInfoRow(
+                      icon: Icons.category,
+                      text: 'Categoría: ${event.category}'
+                    ),
                   ],
                   
                   // Capacidad y asistentes
                   if (event.capacity != null) ...[
                     const SizedBox(height: 8),
-                    _buildInfoRow(
-                      Icons.people, 
-                      'Asistentes: $attendeesCount/${event.capacity}',
+                    EventInfoRow(
+                      icon: Icons.people,
+                      text: 'Asistentes: $attendeesCount/${event.capacity}'
                     ),
                   ],
                   
@@ -390,61 +333,24 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   const SizedBox(height: 32),
                   
                   // Botón para asistir/cancelar asistencia
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: isProcessing ? null : _toggleAttendance,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isAttending ? Colors.red : Color(0xFF0288D1),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: isProcessing 
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Text(
-                            isAttending ? 'Cancelar asistencia' : 'Asistir al evento',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                    ),
+                  AttendEventButton(
+                    isAttending: isAttending,
+                    isProcessing: isProcessing,
+                    onPressed: _toggleAttendance,
                   ),
+                  
+                  // Sección de eventos relacionados
+                  RelatedEventsList(events: relatedEvents),
                 ],
               ),
             ),
+            
+            // Espacio adicional al final
+            const SizedBox(height: 20),
           ],
         ),
       ),
       bottomNavigationBar: const BottomNavBar(currentIndex: 0),
-    );
-  }
-  
-  Widget _buildInfoRow(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey[700]),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[800],
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
