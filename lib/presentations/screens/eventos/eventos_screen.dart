@@ -36,8 +36,29 @@ class EventsScreen extends StatelessWidget {
             icon: const Icon(Icons.more_vert, color: Colors.black),
             onSelected: (value) {
               if (value == 'logout') {
-                // Navegar a la pantalla de inicio
-                context.go('/');
+                // Mostrar diálogo de confirmación
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: const Text('Cerrar sesión'),
+                      content: const Text('¿Estás seguro que deseas cerrar sesión?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancelar'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            context.go('/');
+                          },
+                          child: const Text('Sí, cerrar sesión'),
+                        ),
+                      ],
+                    );
+                  },
+                );
               }
             },
             itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[

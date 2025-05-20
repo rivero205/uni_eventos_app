@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -13,7 +13,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  String _selectedRole = 'Usuario'; 
+  String _selectedRole = 'Estudiante'; 
   bool _isLoading = false;
   String? _errorMessage;
   bool _obscurePassword = true;
@@ -47,15 +47,6 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (mounted) {
-      
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Inicio de sesión exitoso'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        
-        
         context.go('/eventos');
       }
     } on FirebaseAuthException catch (e) {
@@ -212,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             });
                           }
                         },
-                        items: <String>['Usuario', 'Administrador']
+                        items: <String>['Estudiante', 'Administrador'] // Changed 'Usuario' to 'Estudiante'
                             .map<DropdownMenuItem<String>>((String value) {
                           return DropdownMenuItem<String>(
                             value: value,

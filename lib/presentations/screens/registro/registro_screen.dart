@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // Importar Cloud Firesto
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart'; // Importar GoRouter
+import '../../screens/widgets/succes_dialog.dart'; // Importar SuccessDialog
 
 class RegistroScreen extends StatefulWidget {
   const RegistroScreen({super.key});
@@ -65,11 +66,11 @@ class _RegistroScreenState extends State<RegistroScreen> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cuenta creada exitosamente.'),
-            backgroundColor: Colors.green,
-          ),
+        // Mostrar el nuevo diálogo de éxito
+        SuccessDialog.show(
+          context: context,
+          message: 'Cuenta creada exitosamente.',
+          okText: 'Aceptar',
         );
         _formKey.currentState!.reset();
         _nombreController.clear();
