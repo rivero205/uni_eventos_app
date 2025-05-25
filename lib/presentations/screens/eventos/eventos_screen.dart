@@ -3,8 +3,10 @@ import 'package:go_router/go_router.dart';
 import '/models/event.dart';
 import '/services/event_service.dart';
 import '/presentations/widgets/bottom_nav_bar.dart';
-import '/presentations/widgets/event/event_card.dart';
 import '/presentations/widgets/event/featured_event_card.dart';
+import '/presentations/widgets/event/events_list_widget.dart';
+import '/presentations/widgets/event/events_error_widget.dart';
+import '/presentations/widgets/event/events_loading_widget.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -72,67 +74,11 @@ class _EventsScreenState extends State<EventsScreen> {
         }
       });
     }
-  }
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          title: Row(
-            children: [
-              const Icon(Icons.logout, color: Color(0xFF0288D1)),
-              const SizedBox(width: 10),
-              const Text(
-                'Cerrar sesión',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          content: const Text(
-            '¿Estás seguro que deseas cerrar sesión?',
-            style: TextStyle(fontSize: 16),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.grey[700],
-              ),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                context.go('/');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0288D1),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              ),
-              child: const Text('Sí, cerrar sesión'),
-            ),
-          ],
-          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        );
-      },
-    );
-  }
-  @override
+  }  // El diálogo de cierre de sesión se manejará en otro componente si es necesario@override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: EventsLoadingWidget(),
       );
     }
 
@@ -167,9 +113,13 @@ class _EventsScreenState extends State<EventsScreen> {
               ),
             ),
           ),
-        ],      ),
+        ],
+      ),
       body: _errorMessage != null && (_events == null || _events!.isEmpty)
-          ? _buildErrorView()
+          ? EventsErrorWidget(
+              errorMessage: _errorMessage ?? "Error desconocido",
+              onRetry: _loadEvents,
+            )
           : RefreshIndicator(
               onRefresh: _loadEvents,
               child: SingleChildScrollView(
@@ -196,36 +146,9 @@ class _EventsScreenState extends State<EventsScreen> {
                       if (_featuredEvent != null)
                         FeaturedEventCard(event: _featuredEvent!),
                       
-                      // Título "BROWSE ALL"
-                      if (_gridEvents != null && _gridEvents!.isNotEmpty) ...[
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(0, 16, 0, 12),
-                          child: Text(
-                            'BROWSE ALL',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ),
-                        
-                        // Cuadrícula de eventos
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            childAspectRatio: 0.75, // Más alto que ancho
-                          ),
-                          itemCount: _gridEvents!.length,
-                          itemBuilder: (context, index) {
-                            return EventCard(event: _gridEvents![index]);
-                          },
-                        ),
-                      ],
+                      // Lista de eventos en grid
+                      if (_gridEvents != null && _gridEvents!.isNotEmpty)
+                        EventsListWidget(events: _gridEvents!),
                       
                       // Espacio adicional al final
                       const SizedBox(height: 60),
@@ -237,40 +160,5 @@ class _EventsScreenState extends State<EventsScreen> {
       bottomNavigationBar: const BottomNavBar(currentIndex: 0),
     );
   }
-
-  Widget _buildErrorView() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.event_busy,
-              size: 80,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _errorMessage ?? "Error desconocido",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[700],
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _loadEvents,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0288D1),
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-              ),
-              child: const Text("Reintentar"),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // Las funcionalidades de error ahora se manejan con EventsErrorWidget
 }
