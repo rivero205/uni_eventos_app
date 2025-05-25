@@ -37,5 +37,6 @@ final router = GoRouter(
         return EventDetailScreen(eventId: eventId);
       },
     ),
+    // GoRoute for SearchEventScreen removed as it's integrated into EventsScreen
   ]
 );
