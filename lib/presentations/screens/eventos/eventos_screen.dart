@@ -5,10 +5,14 @@ import '/models/event.dart';
 import '/services/event_service.dart';
 import '/services/notification_service.dart';
 import '/presentations/widgets/bottom_nav_bar.dart';
+import '/presentations/widgets/event/event_card.dart';
 import '/presentations/widgets/event/featured_event_card.dart';
-import '/presentations/widgets/event/events_list_widget.dart';
-import '/presentations/widgets/event/events_error_widget.dart';
-import '/presentations/widgets/event/events_loading_widget.dart';
+// import 'package:myapp/presentations/screens/eventos/search_event_screen.dart'; // Will be removed
+import 'package:myapp/presentations/screens/widgets/general_search_widget.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // For Event query
+import 'package:myapp/presentations/screens/eventos/event_detail_screen.dart'; // For navigation from search results
+
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -23,28 +27,28 @@ class _EventsScreenState extends State<EventsScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = true;
   String? _errorMessage;
-  List<Event>? _events;
+  List<Event>? _events; // All events for normal view
   Event? _featuredEvent;
   List<Event>? _gridEvents;
+
+  // Search related state variables
+  bool _isSearching = false;
+  String _searchQuery = "";
+  final TextEditingController _searchController = TextEditingController();
+  Stream<List<Event>>? _searchedEventsStream;
+  List<String> _searchHistory = [];
+  static const String _searchHistoryKey = 'search_history_events_screen'; // Make key unique if SearchEventScreen is kept elsewhere
+  static const String _hasSearchedKey = 'has_searched_before_events_screen';
+  final int _maxHistoryItems = 10;
+  bool _hasSearchedBefore = false;
+  bool _isLoadingHistory = true;
+  final FocusNode _searchFocusNode = FocusNode();
+
 
   @override
   void initState() {
     super.initState();
     _loadEvents();
-    _checkForExpiredEvents();
-  }
-  
-  Future<void> _checkForExpiredEvents() async {
-    final currentUser = _auth.currentUser;
-    if (currentUser != null) {
-      final expiredEvents = await _notificationService.checkExpiredEventsForUser(
-        currentUser.uid,
-        context
-      );
-      if (expiredEvents.isNotEmpty) {
-        _notificationService.showEventExpirationNotification(context, expiredEvents);
-      }
-    }
   }
 
   Future<void> _loadEvents() async {
@@ -108,59 +112,100 @@ class _EventsScreenState extends State<EventsScreen> {
         _gridEvents = events.length > 1 ? events.sublist(1) : [];
         _isLoading = false;
       });
-    } catch (e) {
-      // Si falla la actualización, cargar desde cache
-      await _loadEvents();
     }
-  }
-
-  // El diálogo de cierre de sesión se manejará en otro componente si es necesario@override
+  }  // El diálogo de cierre de sesión se manejará en otro componente si es necesario@override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    if (_isLoading && !_isSearching) { // Only show main loading if not searching
       return const Scaffold(
-        body: EventsLoadingWidget(),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
       );
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,      
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: const Text(
-          'Eventos',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-        actions: [
-          // Botón para ir al perfil
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: GestureDetector(
-              onTap: () {
-                context.go('/profile');
-              },
-              child: const CircleAvatar(
-                radius: 18,
-                backgroundColor: Color(0xFF0288D1),
-                child: Icon(
-                  Icons.person,
-                  color: Colors.white,
-                  size: 20,
+        leading: _isSearching ? IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            setState(() {
+              _isSearching = false;
+              _searchQuery = ""; // Clear search query when exiting search mode
+              _searchController.clear();
+              _searchedEventsStream = Stream.value([]); // Clear results
+            });
+            FocusScope.of(context).unfocus();
+          },
+        ) : null, // No leading icon when not searching (or keep default if any)
+        title: _isSearching 
+            ? GeneralSearchWidget(
+                controller: _searchController,
+                currentQuery: _searchQuery,
+                focusNode: _searchFocusNode,
+                onClear: () {
+                  _searchController.clear();
+                  _onSearchQueryChanged("");
+                },
+                onSubmitted: _onSearchSubmitted,
+                onChanged: _onSearchQueryChanged,
+                labelText: 'Buscar eventos',
+                hintText: 'Nombre, descripción o ubicación...',
+              )
+            : const Text(
+                'Eventos',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
                 ),
               ),
-            ),
-          ),
-        ],
+        actions: _isSearching 
+            ? [
+                // Optionally add a clear all text button if needed, or keep it minimal
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.search, color: Colors.black),
+                  onPressed: () {
+                    setState(() {
+                      _isSearching = true;
+                    });
+                    // Request focus after a short delay to ensure widget is built
+                    Future.delayed(const Duration(milliseconds: 100), () {
+                        FocusScope.of(context).requestFocus(_searchFocusNode);
+                    });
+                  },
+                  tooltip: 'Buscar eventos',
+                ),
+                // Botón para ir al perfil
+                Padding(
+                  padding: const EdgeInsets.only(right: 12.0),
+                  child: GestureDetector(
+                    onTap: () {
+                      context.go('/profile');
+                    },
+                    child: const CircleAvatar(
+                      radius: 18,
+                      backgroundColor: Color(0xFF0288D1),
+                      child: Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
       ),
       body: _errorMessage != null && (_events == null || _events!.isEmpty)
           ? EventsErrorWidget(
               errorMessage: _errorMessage ?? "Error desconocido",
               onRetry: _loadEvents,
-            )          : RefreshIndicator(
-              onRefresh: _refreshEvents,
+            )
+          : RefreshIndicator(
+              onRefresh: _loadEvents,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Padding(
@@ -199,5 +244,40 @@ class _EventsScreenState extends State<EventsScreen> {
       bottomNavigationBar: const BottomNavBar(currentIndex: 0),
     );
   }
-  // Las funcionalidades de error ahora se manejan con EventsErrorWidget
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.event_busy,
+              size: 80,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _errorMessage ?? "Error desconocido",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _loadEvents,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0288D1),
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              ),
+              child: const Text("Reintentar"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

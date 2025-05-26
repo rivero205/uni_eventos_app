@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import '/models/event.dart';
 import '/services/event_service.dart';
 import '/presentations/widgets/bottom_nav_bar.dart';
 import '/presentations/widgets/success_dialog.dart';
-import '/presentations/widgets/dialogs_helper.dart';
 import '/presentations/widgets/event/event_detail_header.dart';
-import '/presentations/widgets/event/events_loading_widget.dart';
-import '/presentations/widgets/event/event_detail_content_widget.dart';
+import '/presentations/widgets/event/event_info_row.dart';
+import '/presentations/widgets/event/attend_event_button.dart';
 import '/presentations/widgets/event/related_events_list.dart';
 
 class EventDetailScreen extends StatefulWidget {
@@ -37,6 +38,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     _eventService = EventService();
     _loadEventDetails();
   }
+
   Future<void> _loadEventDetails() async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -55,10 +57,13 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           currentUser.uid, 
           widget.eventId
         );
-      }
-      
-      // Cargar eventos relacionados
+      }      // Cargar eventos relacionados (excluyendo el evento actual)
       final loadedRelatedEvents = await _eventService.getRelatedEvents(widget.eventId);
+      
+      // Verificar que los eventos relacionados tienen ID válidos
+      for (var relEvent in loadedRelatedEvents) {
+        print('Evento relacionado: ${relEvent.title}, ID: ${relEvent.id}');
+      }
       
       if (mounted) {
         setState(() {
@@ -73,33 +78,53 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         setState(() {
           isLoading = false;
         });
-        
-        // Mostrar mensaje de error
+        // Mostrar mensaje de error con diálogo
         showDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Error'),
-            content: Text('Error al cargar los detalles del evento: $e'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Aceptar'),
-              ),
-            ],
-          ),
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Error'),
+              content: Text('Error al cargar los detalles del evento: $e'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Aceptar'),
+                ),
+              ],
+            );
+          },
         );
       }
     }
   }
+
   Future<void> _toggleAttendance() async {
     if (isProcessing) return;
     
     // Si el usuario ya está asistiendo, mostrar diálogo de confirmación antes de cancelar
     if (isAttending) {
-      final bool? confirm = await DialogsHelper.showConfirmationDialog(
+      final bool? confirm = await showDialog<bool>(
         context: context,
-        title: 'Confirmar cancelación',
-        message: '¿Estás seguro de que deseas cancelar tu asistencia a este evento?',
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Confirmar cancelación'),
+            content: const Text('¿Estás seguro de que deseas cancelar tu asistencia a este evento?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('No, mantener registro'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Sí, cancelar'),
+              ),
+            ],
+          );
+        },
       );
       
       // Si el usuario cancela o cierra el diálogo, no hacer nada
@@ -115,9 +140,20 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) {
-        DialogsHelper.showErrorDialog(
+        showDialog(
           context: context,
-          message: 'Debes iniciar sesión para asistir a eventos',
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Error'),
+              content: const Text('Debes iniciar sesión para asistir a eventos'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Aceptar'),
+                ),
+              ],
+            );
+          },
         );
         return;
       }
@@ -171,9 +207,20 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     } catch (e) {
       // Mostrar diálogo de error
       if (mounted) {
-        DialogsHelper.showErrorDialog(
+        showDialog(
           context: context,
-          message: 'Error: $e',
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Error'),
+              content: Text('Error: $e'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Aceptar'),
+                ),
+              ],
+            );
+          },
         );
       }
     } finally {
@@ -183,13 +230,23 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         });
       }
     }
-  }@override
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (isLoading) {
       return const Scaffold(
-        body: EventsLoadingWidget(),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
       );
     }
+    
+    // Formatear la fecha
+    final formattedDate = DateFormat('dd/MM/yyyy - HH:mm').format(event.date.toDate());
+    
+    // Calcular el número de asistentes
+    final attendeesCount = event.attendees?.length ?? 0;
     
     return Scaffold(
       appBar: AppBar(
@@ -206,19 +263,90 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Cabecera con imagen del evento
+            // Imagen del evento
             EventDetailHeader(event: event),
             
             // Contenido del evento
-            EventDetailContentWidget(
-              event: event,
-              isAttending: isAttending,
-              isProcessing: isProcessing,
-              onToggleAttendance: _toggleAttendance,
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Título
+                  Text(
+                    event.title,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Fecha y ubicación
+                  EventInfoRow(
+                    icon: Icons.calendar_today,
+                    text: 'Fecha: $formattedDate'
+                  ),
+                  const SizedBox(height: 8),
+                  EventInfoRow(
+                    icon: Icons.location_on,
+                    text: 'Ubicación: ${event.location}'
+                  ),
+                  
+                  // Si hay categoría, mostrarla
+                  if (event.category != null) ...[
+                    const SizedBox(height: 8),
+                    EventInfoRow(
+                      icon: Icons.category,
+                      text: 'Categoría: ${event.category}'
+                    ),
+                  ],
+                  
+                  // Capacidad y asistentes
+                  if (event.capacity != null) ...[
+                    const SizedBox(height: 8),
+                    EventInfoRow(
+                      icon: Icons.people,
+                      text: 'Asistentes: $attendeesCount/${event.capacity}'
+                    ),
+                  ],
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Descripción
+                  const Text(
+                    'Descripción',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    event.description,
+                    style: const TextStyle(
+                      fontSize: 16,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 32),
+                  
+                  // Botón para asistir/cancelar asistencia
+                  AttendEventButton(
+                    isAttending: isAttending,
+                    isProcessing: isProcessing,
+                    onPressed: _toggleAttendance,
+                  ),
+                  
+                  // Sección de eventos relacionados
+                  RelatedEventsList(events: relatedEvents),
+                ],
+              ),
             ),
             
-            // Eventos relacionados
-            RelatedEventsList(events: relatedEvents),
+            // Espacio adicional al final
+            const SizedBox(height: 20),
           ],
         ),
       ),
