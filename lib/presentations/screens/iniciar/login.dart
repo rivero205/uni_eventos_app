@@ -208,47 +208,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 16),
                               // Selector de rol
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  isExpanded: true,
-                                  value: _selectedRole,
-                                  icon: const Icon(Icons.arrow_drop_down),
-                                  elevation: 16,
-                                  style: const TextStyle(color: Colors.black),
-                                  onChanged: (String? newValue) {
-                                    if (newValue != null) {
-                                      setState(() {
-                                        _selectedRole = newValue;
-                                      });
-                                    }
-                                  },
-                                  items: <String>['Estudiante', 'Administrador']
-                                      .map<DropdownMenuItem<String>>((String value) {
-                                    return DropdownMenuItem<String>(
-                                      value: value,
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            value == 'Administrador' 
-                                                ? Icons.admin_panel_settings 
-                                                : Icons.person,
-                                            color: Colors.grey,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(value),
-                                        ],
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-                            ),
+                            
                             const SizedBox(height: 16),
                             
                             // Mensaje de error
