@@ -18,10 +18,11 @@ class EventDetailContentWidget extends StatelessWidget {
     required this.isProcessing,
     required this.onToggleAttendance,
   });
-
   @override
   Widget build(BuildContext context) {
-    final formattedDate = DateFormat('dd/MM/yyyy - HH:mm').format(event.date.toDate());
+    final DateTime eventDate = event.date.toDate();
+    final bool isEventExpired = DateTime.now().isAfter(eventDate);
+    final formattedDate = DateFormat('dd/MM/yyyy - HH:mm').format(eventDate);
     final attendeesCount = event.attendees?.length ?? 0;
 
     return Padding(
@@ -84,11 +85,11 @@ class EventDetailContentWidget extends StatelessWidget {
           ),
           
           const SizedBox(height: 32),
-          
-          // Botón para asistir/cancelar asistencia
+            // Botón para asistir/cancelar asistencia
           AttendEventButton(
             isAttending: isAttending,
             isProcessing: isProcessing,
+            isExpired: isEventExpired,
             onPressed: onToggleAttendance,
           ),
         ],

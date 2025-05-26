@@ -9,6 +9,8 @@ class FeaturedEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isExpired = DateTime.now().isAfter(event.date.toDate());
+    
     return GestureDetector(
       onTap: () {
         // Navegar al detalle del evento
@@ -16,17 +18,22 @@ class FeaturedEventCard extends StatelessWidget {
       },
       child: Column(
         children: [
-          // Imagen del evento destacado
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: AspectRatio(
-              aspectRatio: 1.0, // Relación cuadrada para la imagen destacada
-              child: Image.network(
-                event.imageUrl,
-                fit: BoxFit.cover,
-                width: double.infinity,
+          // Imagen del evento destacado con indicador de expiración
+          Stack(
+            children: [
+              // Imagen del evento
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: AspectRatio(
+                  aspectRatio: 1.0, // Relación cuadrada para la imagen destacada
+                  child: Image.network(
+                    event.imageUrl,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
           
           // Título del evento destacado (centrado)
@@ -35,9 +42,10 @@ class FeaturedEventCard extends StatelessWidget {
             child: Center(
               child: Text(
                 event.title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
+                  color: isExpired ? Colors.grey : Colors.black,
                 ),
                 textAlign: TextAlign.center,
               ),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '/models/event.dart';
 import '/services/event_service.dart';
+import '/services/notification_service.dart';
 import '/presentations/widgets/bottom_nav_bar.dart';
 import '/presentations/widgets/event/featured_event_card.dart';
 import '/presentations/widgets/event/events_list_widget.dart';
@@ -17,6 +19,8 @@ class EventsScreen extends StatefulWidget {
 
 class _EventsScreenState extends State<EventsScreen> {
   final EventService _eventService = EventService();
+  final NotificationService _notificationService = NotificationService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = true;
   String? _errorMessage;
   List<Event>? _events;
@@ -27,6 +31,20 @@ class _EventsScreenState extends State<EventsScreen> {
   void initState() {
     super.initState();
     _loadEvents();
+    _checkForExpiredEvents();
+  }
+  
+  Future<void> _checkForExpiredEvents() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser != null) {
+      final expiredEvents = await _notificationService.checkExpiredEventsForUser(
+        currentUser.uid,
+        context
+      );
+      if (expiredEvents.isNotEmpty) {
+        _notificationService.showEventExpirationNotification(context, expiredEvents);
+      }
+    }
   }
 
   Future<void> _loadEvents() async {

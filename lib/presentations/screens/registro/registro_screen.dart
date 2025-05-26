@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // Importar Cloud Firesto
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart'; // Importar GoRouter
-import '../../screens/widgets/succes_dialog.dart'; // Importar SuccessDialog
+import '/presentations/widgets/success_dialog.dart';
 
 class RegistroScreen extends StatefulWidget {
   const RegistroScreen({super.key});

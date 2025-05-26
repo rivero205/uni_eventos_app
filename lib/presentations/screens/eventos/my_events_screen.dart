@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '/models/event.dart';
 import '/models/user_model.dart';
+import '/services/notification_service.dart';
 import '/presentations/widgets/bottom_nav_bar.dart';
 import '/presentations/widgets/event/events_loading_widget.dart';
 import '/presentations/widgets/event/my_events_content.dart';
@@ -18,6 +19,7 @@ class MyEventsScreen extends StatefulWidget {
 class _MyEventsScreenState extends State<MyEventsScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final NotificationService _notificationService = NotificationService();
   
   bool _isLoading = true;
   List<Event> _attendingEvents = [];
@@ -62,6 +64,9 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       // Obtener eventos a los que asiste
       _attendingEvents = await _fetchAttendingEvents(userModel);
       
+      // Verificar si hay eventos expirados y mostrar notificación
+      _checkAndNotifyExpiredEvents(currentUser.uid);
+      
       setState(() {
         _isLoading = false;
       });
@@ -70,6 +75,14 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
         _error = 'Error: $e';
         _isLoading = false;
       });
+    }
+  }
+  
+  // Método para verificar y notificar eventos expirados
+  Future<void> _checkAndNotifyExpiredEvents(String userId) async {
+    final expiredEvents = await _notificationService.checkExpiredEventsForUser(userId, context);
+    if (expiredEvents.isNotEmpty) {
+      _notificationService.showEventExpirationNotification(context, expiredEvents);
     }
   }
   
