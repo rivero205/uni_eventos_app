@@ -109,16 +109,11 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
           print('Error fetching event $eventId: $e');
         }
       }
-      
-      // Si no encontramos eventos en Firestore, buscamos en los eventos de muestra
+        // Si no encontramos eventos en Firestore, buscar en cache local
       if (events.isEmpty) {
-        final sampleEvents = Event.getSampleEvents();
-        for (String eventId in userModel.eventsAttending!) {
-          final sampleEvent = sampleEvents.where((e) => e.id == eventId).toList();
-          if (sampleEvent.isNotEmpty) {
-            events.add(sampleEvent.first);
-          }
-        }
+        // Como alternativa, podríamos intentar buscar en cache local
+        // pero por ahora simplemente devolvemos una lista vacía
+        print('No se encontraron eventos para los IDs del usuario');
       }
       
       return events;

@@ -29,9 +29,15 @@ class Event {
 
   // Método para crear un mapa que Firestore pueda entender
   Map<String, dynamic> toJson() {
+    // Si la URL de la imagen comienza con 'assets/images/', se guarda solo el nombre del archivo.
+    String finalImageUrl = imageUrl;
+    if (imageUrl.startsWith('assets/images/')) {
+      finalImageUrl = imageUrl.replaceFirst('assets/images/', '');
+    }
+
     return {
       'title': title,
-      'imageUrl': imageUrl,
+      'imageUrl': finalImageUrl, // Usar la URL procesada
       'date': date,
       'location': location,
       'description': description,
@@ -42,23 +48,27 @@ class Event {
       'attendees': attendees,
     };
   }
-
   // Método para crear un objeto Event desde un DocumentSnapshot de Firestore
   factory Event.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    String imageUrl = data['imageUrl'] ?? '';
+    
+    // Asegurarse de que imageUrl siempre tenga el prefijo 'assets/images/' si no es una URL externa.
+    if (!imageUrl.startsWith('http') && !imageUrl.startsWith('assets/images/')) {
+      imageUrl = 'assets/images/$imageUrl';
+    }
     
     return Event(
       id: doc.id,
       title: data['title'] ?? '',
-      imageUrl: data['imageUrl'] ?? '',
+      imageUrl: imageUrl, // Usar la URL procesada
       date: data['date'] as Timestamp,
       location: data['location'] ?? '',
       description: data['description'] ?? '',
       organizerId: data['organizerId'] ?? '',
       createdAt: data['createdAt'] as Timestamp,
       category: data['category'],
-      capacity: data['capacity'],
-      attendees: data['attendees'] != null 
+      capacity: data['capacity'],      attendees: data['attendees'] != null && data['attendees'] is List
         ? List<String>.from(data['attendees']) 
         : null,
     );
@@ -66,52 +76,38 @@ class Event {
 
   // Método para crear un objeto Event desde un mapa
   factory Event.fromJson(Map<String, dynamic> json, {String? id}) {
+    // Asegurarse de que imageUrl siempre tenga el prefijo 'assets/images/' si no es una URL externa.
+    String imageUrl = json['imageUrl'] ?? '';
+    if (!imageUrl.startsWith('http') && !imageUrl.startsWith('assets/images/')) {
+      imageUrl = 'assets/images/$imageUrl';
+    }
     return Event(
       id: id,
       title: json['title'] ?? '',
-      imageUrl: json['imageUrl'] ?? '',
-      date: json['date'] as Timestamp,
+      imageUrl: imageUrl, // Usar la URL procesada
+      date: json['date'] is String ? Timestamp.fromDate(DateTime.parse(json['date'])) : json['date'] as Timestamp,
       location: json['location'] ?? '',
       description: json['description'] ?? '',
       organizerId: json['organizerId'] ?? '',
       createdAt: json['createdAt'] as Timestamp,
       category: json['category'],
-      capacity: json['capacity'],
-      attendees: json['attendees'] != null 
+      capacity: json['capacity'],      attendees: json['attendees'] != null && json['attendees'] is List
         ? List<String>.from(json['attendees']) 
         : null,
     );
   }
-
-  // Método para crear eventos de ejemplo - mantenido por compatibilidad, pero ahora se usa desde EventService  // DEPRECATED: Método para crear eventos de ejemplo 
-  // Este método es mantenido por compatibilidad pero se recomienda usar getEventsFromFirestore()
-  static List<Event> getSampleEvents() {
-    return [
-      Event(
-        id: '1',
-        title: 'Arquitectura Moderna',
-        imageUrl: 'https://images.unsplash.com/photo-1487958449943-2429e8be8625?q=80&w=2070',
-        date: Timestamp.fromDate(DateTime(2025, 5, 15)),
-        location: 'Auditorio Principal',
-        description: 'Conferencia sobre las tendencias actuales en arquitectura moderna y su impacto en el diseño urbano.',
-        organizerId: 'admin123',
-        createdAt: Timestamp.now(),
-      ),
-      // Eventos reducidos para tener datos de respaldo en caso de fallo
-      Event(
-        id: '2',
-        title: 'V Congreso',
-        imageUrl: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?q=80&w=2012',
-        date: Timestamp.fromDate(DateTime(2025, 5, 20)),
-        location: 'Centro de Convenciones',
-        description: 'Quinto congreso anual de innovación tecnológica con ponentes internacionales.',
-        organizerId: 'admin123',
-        createdAt: Timestamp.now(),
-      ),
-    ];
+  // Método para obtener la ruta de la imagen local
+  static String getLocalImagePath(String imageUrl) {
+    // Esta función ya no es necesaria aquí si la lógica está en los constructores y toJson.
+    // Se puede eliminar o mantener si se usa en otros lugares específicos.
+    // Por ahora, la dejamos comentada o la eliminamos si no se usa.
+    // if (imageUrl.startsWith('http')) {
+    //   return imageUrl;
+    // }
+    // return 'assets/images/$imageUrl';
+    return imageUrl; // Devuelve la URL como está, ya que se procesa en los constructores.
   }
-  
-  // Método para obtener eventos desde Firestore
+    // Método para obtener eventos desde Firestore
   static Future<List<Event>> getEventsFromFirestore() async {
     try {
       final QuerySnapshot snapshot = await FirebaseFirestore.instance
@@ -123,16 +119,10 @@ class Event {
           .map((doc) => Event.fromFirestore(doc))
           .toList();
           
-      // Si no hay eventos en Firestore, usar datos de ejemplo
-      if (events.isEmpty) {
-        return getSampleEvents();
-      }
-      
       return events;
     } catch (e) {
       print('Error al cargar eventos de Firestore: $e');
-      // En caso de error, devolver datos de ejemplo como fallback
-      return getSampleEvents();
+      return [];
     }
   }
 }

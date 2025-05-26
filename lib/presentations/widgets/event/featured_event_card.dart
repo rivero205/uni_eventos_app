@@ -20,17 +20,38 @@ class FeaturedEventCard extends StatelessWidget {
         children: [
           // Imagen del evento destacado con indicador de expiración
           Stack(
-            children: [
-              // Imagen del evento
+            children: [              // Imagen del evento
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: AspectRatio(
                   aspectRatio: 1.0, // Relación cuadrada para la imagen destacada
-                  child: Image.network(
-                    event.imageUrl,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                  ),
+                  child: event.imageUrl.startsWith('http')
+                    ? Image.network(
+                        event.imageUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey[200],
+                            child: const Center(
+                              child: Icon(Icons.error_outline, size: 30),
+                            ),
+                          );
+                        },
+                      )
+                    : Image.asset(
+                        event.imageUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey[200],
+                            child: const Center(
+                              child: Icon(Icons.error_outline, size: 30),
+                            ),
+                          );
+                        },
+                      ),
                 ),
               ),
             ],

@@ -8,24 +8,36 @@ class EventDetailHeader extends StatelessWidget {
     super.key, 
     required this.event,
   });
-
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       height: 250,
-      child: Image.network(
-        event.imageUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            color: Colors.grey[300],
-            child: const Center(
-              child: Icon(Icons.error_outline, size: 50),
-            ),
-          );
-        },
-      ),
+      child: event.imageUrl.startsWith('http')
+        ? Image.network(
+            event.imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: Colors.grey[300],
+                child: const Center(
+                  child: Icon(Icons.error_outline, size: 50),
+                ),
+              );
+            },
+          )
+        : Image.asset(
+            event.imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: Colors.grey[300],
+                child: const Center(
+                  child: Icon(Icons.error_outline, size: 50),
+                ),
+              );
+            },
+          ),
     );
   }
 }

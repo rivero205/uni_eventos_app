@@ -5,6 +5,7 @@ import 'config/router/app_router.dart';
 import 'config/theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'services/notification_service.dart';
+import 'services/local_storage_service.dart';
 
 
 Future<void> main() async {
@@ -12,6 +13,9 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Inicializar Hive para almacenamiento local
+  await LocalStorageService.initialize();
   runApp(
     MultiProvider(
       providers: [

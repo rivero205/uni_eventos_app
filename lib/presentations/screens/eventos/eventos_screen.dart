@@ -54,13 +54,18 @@ class _EventsScreenState extends State<EventsScreen> {
     });
     
     try {
-      // Obtener lista de eventos de Firestore
+      // Verificar si estamos en modo offline
+      final isOffline = await _eventService.isOfflineMode();
+      
+      // Obtener lista de eventos (desde Firestore o cache local)
       final events = await _eventService.getEvents();
       
       if (events.isEmpty) {
         setState(() {
           _isLoading = false;
-          _errorMessage = "No hay eventos disponibles";
+          _errorMessage = isOffline 
+            ? "Sin conexión y sin datos guardados" 
+            : "No hay eventos disponibles";
           _events = [];
         });
         return;
@@ -73,26 +78,43 @@ class _EventsScreenState extends State<EventsScreen> {
         // El resto de eventos para la cuadrícula
         _gridEvents = events.length > 1 ? events.sublist(1) : [];
         _isLoading = false;
+        
+        // Mostrar indicador de modo offline si es necesario
+        if (isOffline && events.isNotEmpty) {
+          _errorMessage = "Modo offline - Mostrando datos guardados";
+        }
       });
     } catch (e) {
       setState(() {
         _isLoading = false;
         _errorMessage = "Error al cargar los eventos: $e";
-        // Intentar usar los eventos de muestra como fallback
-        try {
-          _events = _eventService.getSampleEvents();
-          if (_events!.isNotEmpty) {
-            _featuredEvent = _events!.first;
-            _gridEvents = _events!.length > 1 ? _events!.sublist(1) : [];
-            _errorMessage = "Usando datos locales. Error de conexión: $e";
-          }
-        } catch (_) {
-          _events = [];
-          _errorMessage = "No se pudieron cargar los eventos.";
-        }
+        _events = [];
       });
     }
-  }  // El diálogo de cierre de sesión se manejará en otro componente si es necesario@override
+  }  
+  // Método para forzar actualización (pull to refresh)
+  Future<void> _refreshEvents() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+      
+      final events = await _eventService.refreshEvents();
+      
+      setState(() {
+        _events = events;
+        _featuredEvent = events.isNotEmpty ? events.first : null;
+        _gridEvents = events.length > 1 ? events.sublist(1) : [];
+        _isLoading = false;
+      });
+    } catch (e) {
+      // Si falla la actualización, cargar desde cache
+      await _loadEvents();
+    }
+  }
+
+  // El diálogo de cierre de sesión se manejará en otro componente si es necesario@override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
@@ -137,9 +159,8 @@ class _EventsScreenState extends State<EventsScreen> {
           ? EventsErrorWidget(
               errorMessage: _errorMessage ?? "Error desconocido",
               onRetry: _loadEvents,
-            )
-          : RefreshIndicator(
-              onRefresh: _loadEvents,
+            )          : RefreshIndicator(
+              onRefresh: _refreshEvents,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Padding(

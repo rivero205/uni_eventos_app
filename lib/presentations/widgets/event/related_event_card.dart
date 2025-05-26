@@ -55,18 +55,31 @@ class RelatedEventCard extends StatelessWidget {
               ),              child: SizedBox(
                 width: 90, 
                 height: 65,
-                child: Image.network(
-                  event.imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: Icon(Icons.error_outline, size: 24),
-                      ),
-                    );
-                  },
-                ),
+                child: event.imageUrl.startsWith('http')
+                  ? Image.network(
+                      event.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: Icon(Icons.error_outline, size: 24),
+                          ),
+                        );
+                      },
+                    )
+                  : Image.asset(
+                      event.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: Icon(Icons.error_outline, size: 24),
+                          ),
+                        );
+                      },
+                    ),
               ),
             ),            
             // Contenido del lado derecho (título y fecha)

@@ -21,33 +21,42 @@ class EventCard extends StatelessWidget {
           Expanded(
             child: Stack(
               fit: StackFit.expand,
-              children: [
-                // Imagen del evento
+              children: [                // Imagen del evento
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
                     width: double.infinity,
                     color: Colors.grey[200], // Color de fondo por si la imagen no carga
-                    child: Image.network(
-                      event.imageUrl,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded / 
-                                  loadingProgress.expectedTotalBytes!
-                                : null,
-                          ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Center(
-                          child: Icon(Icons.error_outline, size: 30),
-                        );
-                      },
-                    ),
+                    child: event.imageUrl.startsWith('http') 
+                      ? Image.network(
+                          event.imageUrl,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / 
+                                      loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Center(
+                              child: Icon(Icons.error_outline, size: 30),
+                            );
+                          },
+                        )
+                      : Image.asset(
+                          event.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Center(
+                              child: Icon(Icons.error_outline, size: 30),
+                            );
+                          },
+                        ),
                   ),
                 ),
               ],

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '/models/event.dart';
+import '/services/local_storage_service.dart';
 
 class EventService {
   final FirebaseFirestore _firestore;
@@ -7,18 +8,70 @@ class EventService {
   EventService({
     FirebaseFirestore? firestore
   }) : _firestore = firestore ?? FirebaseFirestore.instance;
-
-  // Obtener lista de eventos desde Firestore
+  // Obtener lista de eventos desde Firestore con soporte offline
   Future<List<Event>> getEvents() async {
-    return await Event.getEventsFromFirestore();
+    try {
+      // Verificar si tenemos cache reciente
+      final bool hasRecentCache = await LocalStorageService.isCacheRecent();
+      
+      if (hasRecentCache) {
+        print('Usando cache reciente de eventos');
+        return await LocalStorageService.getCachedEvents();
+      }
+      
+      print('Intentando cargar eventos desde Firestore...');
+      // Intentar cargar desde Firestore
+      final events = await Event.getEventsFromFirestore();
+      
+      if (events.isNotEmpty) {
+        print('Eventos cargados desde Firestore: ${events.length}');
+        // Si tenemos eventos, guardarlos en cache
+        await LocalStorageService.cacheEvents(events);
+        return events;
+      } else {
+        print('No hay eventos en Firestore, usando cache local');
+        // Si no hay eventos en Firestore, usar cache local
+        return await LocalStorageService.getCachedEvents();
+      }
+    } catch (e) {
+      print('Error al cargar eventos de Firestore, usando cache local: $e');
+      // En caso de error (sin conexión), usar cache local
+      final cachedEvents = await LocalStorageService.getCachedEvents();
+      if (cachedEvents.isEmpty) {
+        print('No hay cache disponible');
+      } else {
+        print('Usando ${cachedEvents.length} eventos del cache');
+      }
+      return cachedEvents;
+    }
   }
   
-  // Obtener lista de eventos de ejemplo (mantiene compatibilidad)
-  List<Event> getSampleEvents() {
-    return Event.getSampleEvents();
+  // Verificar si hay conexión y datos en cache
+  Future<bool> isOfflineMode() async {
+    try {
+      // Intentar una consulta simple a Firestore para verificar conectividad
+      await _firestore.collection('events').limit(1).get();
+      return false; // Hay conexión
+    } catch (e) {
+      // Sin conexión, verificar si hay cache disponible
+      return await LocalStorageService.hasCache();
+    }
   }
-  
-  // Obtener un evento por ID
+
+  // Forzar actualización desde Firestore
+  Future<List<Event>> refreshEvents() async {
+    try {
+      final events = await Event.getEventsFromFirestore();
+      if (events.isNotEmpty) {
+        await LocalStorageService.cacheEvents(events);
+      }
+      return events;
+    } catch (e) {
+      print('Error al actualizar eventos desde Firestore: $e');
+      rethrow;
+    }
+  }
+    // Obtener un evento por ID
   Future<Event?> getEventById(String eventId) async {
     try {
       // Intentar cargar el evento desde Firestore
@@ -31,9 +84,9 @@ class EventService {
         return Event.fromFirestore(eventDoc);
       }
       
-      // Si no existe en Firestore, usar eventos de ejemplo como respaldo
-      final events = getSampleEvents();
-      return events.firstWhere(
+      // Si no existe en Firestore, buscar en cache local
+      final cachedEvents = await LocalStorageService.getCachedEvents();
+      return cachedEvents.firstWhere(
         (e) => e.id == eventId,
         orElse: () => throw Exception('Evento no encontrado'),
       );
@@ -41,8 +94,7 @@ class EventService {
       print('Error al obtener evento por ID: $e');
       rethrow;
     }
-  }
-  // Obtener eventos relacionados (excluyendo un evento específico)
+  }  // Obtener eventos relacionados (excluyendo un evento específico)
   Future<List<Event>> getRelatedEvents(String currentEventId) async {
     try {
       // Obtener todos los eventos desde Firestore
@@ -54,9 +106,9 @@ class EventService {
           .toList();
     } catch (e) {
       print('Error al obtener eventos relacionados: $e');
-      // Usar datos de ejemplo como fallback
-      final allEvents = getSampleEvents();
-      return allEvents
+      // Usar cache local como fallback
+      final cachedEvents = await LocalStorageService.getCachedEvents();
+      return cachedEvents
           .where((e) => e.id != currentEventId)
           .toList();
     }
