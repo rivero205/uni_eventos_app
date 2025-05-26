@@ -1,18 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '/models/event.dart';
 import '/services/event_service.dart';
-import '/services/notification_service.dart';
 import '/presentations/widgets/bottom_nav_bar.dart';
-import '/presentations/widgets/event/event_card.dart';
 import '/presentations/widgets/event/featured_event_card.dart';
-// import 'package:myapp/presentations/screens/eventos/search_event_screen.dart'; // Will be removed
-import 'package:myapp/presentations/screens/widgets/general_search_widget.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // For Event query
-import 'package:myapp/presentations/screens/eventos/event_detail_screen.dart'; // For navigation from search results
-
+import '/presentations/widgets/event/events_list_widget.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -23,261 +15,249 @@ class EventsScreen extends StatefulWidget {
 
 class _EventsScreenState extends State<EventsScreen> {
   final EventService _eventService = EventService();
-  final NotificationService _notificationService = NotificationService();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = true;
   String? _errorMessage;
-  List<Event>? _events; // All events for normal view
-  Event? _featuredEvent;
-  List<Event>? _gridEvents;
-
-  // Search related state variables
-  bool _isSearching = false;
-  String _searchQuery = "";
-  final TextEditingController _searchController = TextEditingController();
-  Stream<List<Event>>? _searchedEventsStream;
-  List<String> _searchHistory = [];
-  static const String _searchHistoryKey = 'search_history_events_screen'; // Make key unique if SearchEventScreen is kept elsewhere
-  static const String _hasSearchedKey = 'has_searched_before_events_screen';
-  final int _maxHistoryItems = 10;
-  bool _hasSearchedBefore = false;
-  bool _isLoadingHistory = true;
-  final FocusNode _searchFocusNode = FocusNode();
-
+  Stream<List<Event>>? _eventsStream;
 
   @override
   void initState() {
     super.initState();
-    _loadEvents();
+    // Inicializamos el stream para escuchar cambios en tiempo real
+    _eventsStream = _eventService.getEventsStream();
+    _checkConnectivity();
+  }
+  
+  // Método para verificar la conectividad
+  Future<void> _checkConnectivity() async {
+    try {
+      final isOffline = await _eventService.isOfflineMode();
+      if (isOffline) {
+        setState(() {
+          _errorMessage = "Modo offline - Mostrando datos guardados";
+        });
+      }
+    } catch (e) {
+      print('Error al verificar conectividad: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
-  Future<void> _loadEvents() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-    
+  Future<void> _refreshEvents() async {
+    // Este método ahora solo es para mostrar el indicador de refresh
+    // pero el StreamBuilder actualizará automáticamente la UI
     try {
-      // Verificar si estamos en modo offline
-      final isOffline = await _eventService.isOfflineMode();
-      
-      // Obtener lista de eventos (desde Firestore o cache local)
-      final events = await _eventService.getEvents();
-      
-      if (events.isEmpty) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = isOffline 
-            ? "Sin conexión y sin datos guardados" 
-            : "No hay eventos disponibles";
-          _events = [];
-        });
-        return;
-      }
-      
+      await _eventService.refreshEvents();
       setState(() {
-        _events = events;
-        // El primer evento será el destacado
-        _featuredEvent = events.first;
-        // El resto de eventos para la cuadrícula
-        _gridEvents = events.length > 1 ? events.sublist(1) : [];
-        _isLoading = false;
-        
-        // Mostrar indicador de modo offline si es necesario
-        if (isOffline && events.isNotEmpty) {
-          _errorMessage = "Modo offline - Mostrando datos guardados";
-        }
+        _errorMessage = null;
       });
     } catch (e) {
       setState(() {
-        _isLoading = false;
-        _errorMessage = "Error al cargar los eventos: $e";
-        _events = [];
+        _errorMessage = "Error al actualizar eventos: $e";
       });
     }
-  }  
-  // Método para forzar actualización (pull to refresh)
-  Future<void> _refreshEvents() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
-      
-      final events = await _eventService.refreshEvents();
-      
-      setState(() {
-        _events = events;
-        _featuredEvent = events.isNotEmpty ? events.first : null;
-        _gridEvents = events.length > 1 ? events.sublist(1) : [];
-        _isLoading = false;
-      });
-    }
-  }  // El diálogo de cierre de sesión se manejará en otro componente si es necesario@override
-  Widget build(BuildContext context) {
-    if (_isLoading && !_isSearching) { // Only show main loading if not searching
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
+    return Future.delayed(Duration.zero); // Para cerrar el indicador de refresh
+  }
+  Widget _buildErrorMessage() {
+    // Determinar si es un mensaje de modo offline o un error real
+    final bool isOfflineMode = _errorMessage != null && _errorMessage!.contains("offline");
+    
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(top: 16, bottom: 16),
+      decoration: BoxDecoration(
+        color: isOfflineMode
+          ? Colors.orange.shade100  // Warning para offline mode
+          : Colors.red.shade100,    // Error para sin eventos
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isOfflineMode
+            ? Colors.orange.shade300 
+            : Colors.red.shade300
         ),
-      );
-    }
-
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isOfflineMode
+              ? Icons.info 
+              : Icons.error_outline,
+            color: isOfflineMode
+              ? Colors.orange.shade700 
+              : Colors.red.shade700
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _errorMessage!,
+              style: TextStyle(
+                color: isOfflineMode
+                  ? Colors.orange.shade700 
+                  : Colors.red.shade700
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        leading: _isSearching ? IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            setState(() {
-              _isSearching = false;
-              _searchQuery = ""; // Clear search query when exiting search mode
-              _searchController.clear();
-              _searchedEventsStream = Stream.value([]); // Clear results
-            });
-            FocusScope.of(context).unfocus();
-          },
-        ) : null, // No leading icon when not searching (or keep default if any)
-        title: _isSearching 
-            ? GeneralSearchWidget(
-                controller: _searchController,
-                currentQuery: _searchQuery,
-                focusNode: _searchFocusNode,
-                onClear: () {
-                  _searchController.clear();
-                  _onSearchQueryChanged("");
-                },
-                onSubmitted: _onSearchSubmitted,
-                onChanged: _onSearchQueryChanged,
-                labelText: 'Buscar eventos',
-                hintText: 'Nombre, descripción o ubicación...',
-              )
-            : const Text(
-                'Eventos',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+        elevation: 0,
+        title: const Text(
+          'Eventos',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        actions: [
+          // Icono de búsqueda
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: GestureDetector(
+              onTap: () {
+                context.go('/search');
+              },
+              child: const CircleAvatar(
+                radius: 18,
+                backgroundColor: Color(0xFF0288D1),
+                child: Icon(
+                  Icons.search,
+                  color: Colors.white,
+                  size: 20,
                 ),
               ),
-        actions: _isSearching 
-            ? [
-                // Optionally add a clear all text button if needed, or keep it minimal
-              ]
-            : [
-                IconButton(
-                  icon: const Icon(Icons.search, color: Colors.black),
-                  onPressed: () {
-                    setState(() {
-                      _isSearching = true;
-                    });
-                    // Request focus after a short delay to ensure widget is built
-                    Future.delayed(const Duration(milliseconds: 100), () {
-                        FocusScope.of(context).requestFocus(_searchFocusNode);
-                    });
-                  },
-                  tooltip: 'Buscar eventos',
+            ),
+          ),
+          // Icono de perfil
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: GestureDetector(
+              onTap: () {
+                context.go('/profile');
+              },
+              child: const CircleAvatar(
+                radius: 18,
+                backgroundColor: Color(0xFF0288D1),
+                child: Icon(
+                  Icons.person,
+                  color: Colors.white,
+                  size: 20,
                 ),
-                // Botón para ir al perfil
-                Padding(
-                  padding: const EdgeInsets.only(right: 12.0),
-                  child: GestureDetector(
-                    onTap: () {
-                      context.go('/profile');
-                    },
-                    child: const CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Color(0xFF0288D1),
-                      child: Icon(
-                        Icons.person,
-                        color: Colors.white,
-                        size: 20,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _refreshEvents,
+        child: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : StreamBuilder<List<Event>>(
+              stream: _eventsStream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error al cargar eventos: ${snapshot.error}'),
+                  );
+                }
+                
+                // Obtener y procesar los eventos del stream
+                List<Event> events = snapshot.data ?? [];
+                
+                // Si no hay eventos, mostrar mensaje vacío
+                if (events.isEmpty) {
+                  return SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(height: MediaQuery.of(context).size.height / 4),
+                          Icon(
+                            Icons.event_busy,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No hay eventos disponibles',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ),
-              ],
-      ),
-      body: _errorMessage != null && (_events == null || _events!.isEmpty)
-          ? EventsErrorWidget(
-              errorMessage: _errorMessage ?? "Error desconocido",
-              onRetry: _loadEvents,
-            )
-          : RefreshIndicator(
-              onRefresh: _loadEvents,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Padding(
+                  );
+                }
+                
+                // Seleccionar el evento destacado (el más reciente)
+                Event featuredEvent = events.first;
+                
+                // Eventos para la cuadrícula (todos excepto el destacado)
+                List<Event> gridEvents = events.where((e) => e.id != featuredEvent.id).toList();
+                
+                return SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Subtítulo "NOVEDADES DE HOY"
+                      if (_errorMessage != null)
+                        _buildErrorMessage(),
+                      
                       const Padding(
                         padding: EdgeInsets.only(bottom: 12, top: 16),
                         child: Text(
                           'NOVEDADES DE HOY',
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                            color: Colors.black87,
                           ),
                         ),
                       ),
+                      FeaturedEventCard(event: featuredEvent),
                       
-                      // Evento destacado
-                      if (_featuredEvent != null)
-                        FeaturedEventCard(event: _featuredEvent!),
+                      if (gridEvents.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        const Text(
+                          'TODOS LOS EVENTOS',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        EventsListWidget(events: gridEvents),
+                      ],
                       
-                      // Lista de eventos en grid
-                      if (_gridEvents != null && _gridEvents!.isNotEmpty)
-                        EventsListWidget(events: _gridEvents!),
-                      
-                      // Espacio adicional al final
-                      const SizedBox(height: 60),
+                      const SizedBox(height: 60), // Espacio para el bottom nav bar
                     ],
                   ),
-                ),
-              ),
+                );
+              },
             ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 0),
-    );
-  }
-
-  Widget _buildErrorView() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.event_busy,
-              size: 80,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _errorMessage ?? "Error desconocido",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[700],
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _loadEvents,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0288D1),
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-              ),
-              child: const Text("Reintentar"),
-            ),
-          ],
-        ),
       ),
+      bottomNavigationBar: const BottomNavBar(currentIndex: 0),
     );
   }
 }

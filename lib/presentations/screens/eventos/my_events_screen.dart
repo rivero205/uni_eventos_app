@@ -155,57 +155,56 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
     );
   }
   
-  Widget _buildEventsList() {
-    if (_attendingEvents.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.event_busy,
-              size: 80,
+Widget _buildEventsList() {
+  if (_attendingEvents.isEmpty) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.event_busy,
+            size: 80,
+            color: Colors.grey,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'No estás inscrito en ningún evento',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
               color: Colors.grey,
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'No estás inscrito en ningún evento',
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => context.go('/eventos'),
+            child: const Text(
+              'Explorar eventos',
               style: TextStyle(
-                fontSize: 18,
+                color: Color(0xFF0288D1),
                 fontWeight: FontWeight.bold,
-                color: Colors.grey,
               ),
             ),
-            //
-            const SizedBox(height: 8),
-            TextButton(
-                onPressed: () => context.go('/eventos'),
-              child: const Text(
-                'Explorar eventos',
-                style: TextStyle(
-                  color: Color(0xFF0288D1),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 0.75, // Más alto que ancho
-        ),
-        itemCount: _attendingEvents.length,
-        itemBuilder: (context, index) {
-          return EventCard(event: _attendingEvents[index]);
-        },
+          ),
+        ],
       ),
     );
   }
+  
+  return Padding(
+    padding: const EdgeInsets.all(16.0),
+    child: GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 0.67, // Ajustado para eliminar el overflow de 1.2px
+      ),
+      itemCount: _attendingEvents.length,
+      itemBuilder: (context, index) {
+        return EventCard(event: _attendingEvents[index]);
+      },
+    ),
+  );
+}
 }

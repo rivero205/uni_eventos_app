@@ -331,12 +331,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   ),
                   
                   const SizedBox(height: 32),
-                  
-                  // Botón para asistir/cancelar asistencia
+                    // Botón para asistir/cancelar asistencia
                   AttendEventButton(
                     isAttending: isAttending,
                     isProcessing: isProcessing,
                     onPressed: _toggleAttendance,
+                    isExpired: DateTime.now().isAfter(event.date.toDate()),
                   ),
                   
                   // Sección de eventos relacionados

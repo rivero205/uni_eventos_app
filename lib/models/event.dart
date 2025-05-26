@@ -106,13 +106,12 @@ class Event {
     // }
     // return 'assets/images/$imageUrl';
     return imageUrl; // Devuelve la URL como está, ya que se procesa en los constructores.
-  }
-    // Método para obtener eventos desde Firestore
+  }  // Método para obtener eventos desde Firestore
   static Future<List<Event>> getEventsFromFirestore() async {
     try {
       final QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('events')
-          .orderBy('date', descending: false)
+          .orderBy('createdAt', descending: true) // Ordenamos por fecha de creación para obtener los más recientes primero
           .get();
           
       List<Event> events = snapshot.docs
@@ -123,6 +122,24 @@ class Event {
     } catch (e) {
       print('Error al cargar eventos de Firestore: $e');
       return [];
+    }
+  }
+  
+  // Método para crear un stream de eventos desde Firestore
+  static Stream<List<Event>> getEventsStream() {
+    try {
+      return FirebaseFirestore.instance
+          .collection('events')
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .map((snapshot) {
+            return snapshot.docs
+                .map((doc) => Event.fromFirestore(doc))
+                .toList();
+          });
+    } catch (e) {
+      print('Error al crear stream de eventos: $e');
+      return Stream.value([]);
     }
   }
 }

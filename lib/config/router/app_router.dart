@@ -34,9 +34,12 @@ final router = GoRouter(
       path: '/event/:id',
       builder: (context, state) {
         final eventId = state.pathParameters['id'] ?? '';
-        return EventDetailScreen(eventId: eventId);
-      },
+        return EventDetailScreen(eventId: eventId);      },
     ),
-    // GoRoute for SearchEventScreen removed as it's integrated into EventsScreen
+    // GoRoute for SearchEventScreen reimplementado
+    GoRoute(
+      path: '/search',
+      builder: (context, state) => const SearchEventScreen(),
+    ),
   ]
 );

@@ -1,3 +1,4 @@
+﻿// filepath: d:\Proyectos_Flutter\uni_eventos_app\lib\services\event_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '/models/event.dart';
 import '/services/local_storage_service.dart';
@@ -8,6 +9,20 @@ class EventService {
   EventService({
     FirebaseFirestore? firestore
   }) : _firestore = firestore ?? FirebaseFirestore.instance;
+  
+  // Ordenar eventos: vigentes primero (por fecha más cercana) y luego expirados
+  List<Event> _sortEvents(List<Event> events) {
+    final now = DateTime.now();
+    final activeEvents = events.where((e) => e.date.toDate().isAfter(now)).toList();
+    final expiredEvents = events.where((e) => e.date.toDate().isBefore(now)).toList();
+    
+    // Ordenar eventos activos por fecha más próxima primero
+    activeEvents.sort((a, b) => a.date.compareTo(b.date));
+    
+    // Combinar eventos: primero los vigentes, luego los expirados
+    return [...activeEvents, ...expiredEvents];
+  }
+  
   // Obtener lista de eventos desde Firestore con soporte offline
   Future<List<Event>> getEvents() async {
     try {
@@ -16,7 +31,8 @@ class EventService {
       
       if (hasRecentCache) {
         print('Usando cache reciente de eventos');
-        return await LocalStorageService.getCachedEvents();
+        final events = await LocalStorageService.getCachedEvents();
+        return _sortEvents(events);
       }
       
       print('Intentando cargar eventos desde Firestore...');
@@ -27,11 +43,12 @@ class EventService {
         print('Eventos cargados desde Firestore: ${events.length}');
         // Si tenemos eventos, guardarlos en cache
         await LocalStorageService.cacheEvents(events);
-        return events;
+        return _sortEvents(events);
       } else {
         print('No hay eventos en Firestore, usando cache local');
         // Si no hay eventos en Firestore, usar cache local
-        return await LocalStorageService.getCachedEvents();
+        final events = await LocalStorageService.getCachedEvents();
+        return _sortEvents(events);
       }
     } catch (e) {
       print('Error al cargar eventos de Firestore, usando cache local: $e');
@@ -42,22 +59,10 @@ class EventService {
       } else {
         print('Usando ${cachedEvents.length} eventos del cache');
       }
-      return cachedEvents;
+      return _sortEvents(cachedEvents);
     }
   }
   
-  // Verificar si hay conexión y datos en cache
-  Future<bool> isOfflineMode() async {
-    try {
-      // Intentar una consulta simple a Firestore para verificar conectividad
-      await _firestore.collection('events').limit(1).get();
-      return false; // Hay conexión
-    } catch (e) {
-      // Sin conexión, verificar si hay cache disponible
-      return await LocalStorageService.hasCache();
-    }
-  }
-
   // Forzar actualización desde Firestore
   Future<List<Event>> refreshEvents() async {
     try {
@@ -65,13 +70,14 @@ class EventService {
       if (events.isNotEmpty) {
         await LocalStorageService.cacheEvents(events);
       }
-      return events;
+      return _sortEvents(events);
     } catch (e) {
       print('Error al actualizar eventos desde Firestore: $e');
       rethrow;
     }
   }
-    // Obtener un evento por ID
+    
+  // Obtener un evento por ID
   Future<Event?> getEventById(String eventId) async {
     try {
       // Intentar cargar el evento desde Firestore
@@ -94,7 +100,9 @@ class EventService {
       print('Error al obtener evento por ID: $e');
       rethrow;
     }
-  }  // Obtener eventos relacionados (excluyendo un evento específico)
+  }
+  
+  // Obtener eventos relacionados (excluyendo un evento específico)
   Future<List<Event>> getRelatedEvents(String currentEventId) async {
     try {
       // Obtener todos los eventos desde Firestore
@@ -113,7 +121,19 @@ class EventService {
           .toList();
     }
   }
-
+  
+  // Verificar si hay conexión y datos en cache
+  Future<bool> isOfflineMode() async {
+    try {
+      // Intentar una consulta simple a Firestore para verificar conectividad
+      await _firestore.collection('events').limit(1).get();
+      return false; // Hay conexión
+    } catch (e) {
+      // Sin conexión, verificar si hay cache disponible
+      return await LocalStorageService.hasCache();
+    }
+  }
+  
   // Verificar si un usuario está asistiendo a un evento
   Future<bool> isUserAttendingEvent(String userId, String eventId) async {
     if (userId.isEmpty) return false;
@@ -201,45 +221,106 @@ class EventService {
           'attendees': updatedEventAttendees
         });
         
-        // Actualizar el perfil del usuario
-        List<String> userEventsAttending = [];
-        
-        if (userDoc.exists) {
-          final userData = userDoc.data();
-          userEventsAttending = userData?['eventsAttending'] != null 
-              ? List<String>.from(userData?['eventsAttending']) 
-              : [];
-        }
-        
-        if (willAttend) {
-          if (!userEventsAttending.contains(eventId)) {
-            userEventsAttending.add(eventId);
-          }
-        } else {
-          userEventsAttending.remove(eventId);
-        }
-        
         // Actualizar el documento del usuario en Firestore
         if (userDoc.exists) {
+          final userData = userDoc.data();
+          List<String> userEventsAttending = [];
+          
+          if (userData != null && userData.containsKey('eventsAttending') && userData['eventsAttending'] is List) {
+            userEventsAttending = List<String>.from(userData['eventsAttending']);
+          }
+          
+          if (willAttend) {
+            if (!userEventsAttending.contains(eventId)) {
+              userEventsAttending.add(eventId);
+            }
+          } else {
+            userEventsAttending.remove(eventId);
+          }
+          
+          // Actualizar el documento del usuario
           transaction.update(userRef, {
             'eventsAttending': userEventsAttending
           });
         } else {
-          // Si por alguna razón el usuario no existe en la base de datos
+          // Si el usuario no existe, crear un nuevo documento para el usuario
           transaction.set(userRef, {
-            'eventsAttending': userEventsAttending,
-            'nombre': event.organizerId,
-            'email': '',
-            'photoUrl': null,
-            'createdAt': Timestamp.now()
+            'id': userId,
+            'eventsAttending': willAttend ? [eventId] : []
           });
         }
       });
       
-      return;
+      // Actualizar cache local
+      final cachedEvents = await LocalStorageService.getCachedEvents();
+      for (int i = 0; i < cachedEvents.length; i++) {
+        if (cachedEvents[i].id == eventId) {
+          final Event oldEvent = cachedEvents[i];
+          List<String> updatedAttendees = oldEvent.attendees?.toList() ?? [];
+          
+          if (!currentAttendingState) {
+            updatedAttendees.add(userId);
+          } else {
+            updatedAttendees.remove(userId);
+          }
+          
+          // No podemos modificar directamente oldEvent porque es inmutable
+          // Por lo tanto, creamos una nueva instancia con los datos actualizados
+          cachedEvents[i] = Event(
+            id: oldEvent.id,
+            title: oldEvent.title,
+            imageUrl: oldEvent.imageUrl,
+            date: oldEvent.date,
+            location: oldEvent.location,
+            description: oldEvent.description,
+            organizerId: oldEvent.organizerId,
+            createdAt: oldEvent.createdAt,
+            category: oldEvent.category,
+            capacity: oldEvent.capacity,
+            attendees: updatedAttendees,
+          );
+          break;
+        }
+      }
+      
+      // Guardar eventos actualizados en cache
+      await LocalStorageService.cacheEvents(cachedEvents);
+      
     } catch (e) {
-      print('Error al actualizar asistencia: $e');
-      rethrow;
+      print('Error al actualizar asistencia al evento: $e');
+      throw Exception('Error al actualizar asistencia: $e');
+    }
+  }
+  
+  // Buscar eventos por categoría
+  Future<List<Event>> searchEventsByCategory(String category) async {
+    try {
+      final snapshot = await _firestore
+          .collection('events')
+          .where('category', isEqualTo: category)
+          .get();
+          
+      List<Event> events = snapshot.docs
+          .map((doc) => Event.fromFirestore(doc))
+          .toList();
+          
+      return _sortEvents(events);
+    } catch (e) {
+      // Fallback a búsqueda en caché local
+      final allCachedEvents = await LocalStorageService.getCachedEvents();
+      return allCachedEvents
+          .where((event) => event.category == category)
+          .toList();
+    }
+  }
+  
+  // Obtener un stream de eventos para actualización en tiempo real
+  Stream<List<Event>> getEventsStream() {
+    try {
+      return Event.getEventsStream().map((events) => _sortEvents(events));
+    } catch (e) {
+      print('Error al obtener stream de eventos: $e');
+      return Stream.value([]);
     }
   }
 }

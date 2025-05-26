@@ -6,67 +6,67 @@ class EventCard extends StatelessWidget {
   final Event event;
 
   const EventCard({super.key, required this.event});
+  
   @override
   Widget build(BuildContext context) {
     final bool isExpired = DateTime.now().isAfter(event.date.toDate());
 
     return GestureDetector(
       onTap: () {
-        // Navegar al detalle del evento
         context.go('/event/${event.id}');
       },
-      child: Column(
-        children: [
-          // Contenedor para la imagen
-          Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [                // Imagen del evento
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    width: double.infinity,
-                    color: Colors.grey[200], // Color de fondo por si la imagen no carga
-                    child: event.imageUrl.startsWith('http') 
-                      ? Image.network(
-                          event.imageUrl,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Center(
-                              child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded / 
-                                      loadingProgress.expectedTotalBytes!
-                                    : null,
-                              ),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Center(
-                              child: Icon(Icons.error_outline, size: 30),
-                            );
-                          },
-                        )
-                      : Image.asset(
-                          event.imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Center(
-                              child: Icon(Icons.error_outline, size: 30),
-                            );
-                          },
-                        ),
-                  ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        // Añadimos margin vertical para controlar el espacio entre tarjetas
+        margin: const EdgeInsets.only(bottom: 4.0),
+        child: Column(
+          children: [
+            // Contenedor para la imagen con altura modificada
+            AspectRatio(
+              aspectRatio: 4/5, // Modificamos para que sea menos alta y evitar desborde
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  color: Colors.grey[200],
+                  child: event.imageUrl.startsWith('http') 
+                    ? Image.network(
+                        event.imageUrl,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded / 
+                                    loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(
+                            child: Icon(Icons.error_outline, size: 30),
+                          );
+                        },
+                      )
+                    : Image.asset(
+                        event.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(
+                            child: Icon(Icons.error_outline, size: 30),
+                          );
+                        },
+                      ),
                 ),
-              ],
+              ),
             ),
-          ),
-          
-          // Título del evento (centrado)
-          Padding(
-            padding: const EdgeInsets.only(top: 8.0),
-            child: Center(
+            
+            // Título del evento (centrado) con padding ajustado
+            Padding(
+              padding: const EdgeInsets.only(top: 6.0, left: 4.0, right: 4.0, bottom: 2.0),
               child: Text(
                 event.title,
                 style: TextStyle(
@@ -79,8 +79,8 @@ class EventCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

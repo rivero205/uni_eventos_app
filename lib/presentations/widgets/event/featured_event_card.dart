@@ -13,66 +13,79 @@ class FeaturedEventCard extends StatelessWidget {
     
     return GestureDetector(
       onTap: () {
-        // Navegar al detalle del evento
         context.go('/event/${event.id}');
       },
-      child: Column(
-        children: [
-          // Imagen del evento destacado con indicador de expiración
-          Stack(
-            children: [              // Imagen del evento
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: AspectRatio(
-                  aspectRatio: 1.0, // Relación cuadrada para la imagen destacada
-                  child: event.imageUrl.startsWith('http')
-                    ? Image.network(
-                        event.imageUrl,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: Icon(Icons.error_outline, size: 30),
-                            ),
-                          );
-                        },
-                      )
-                    : Image.asset(
-                        event.imageUrl,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: Icon(Icons.error_outline, size: 30),
-                            ),
-                          );
-                        },
-                      ),
-                ),
-              ),
-            ],
-          ),
-          
-          // Título del evento destacado (centrado)
-          Padding(
-            padding: const EdgeInsets.only(top: 8.0),
-            child: Center(
-              child: Text(
-                event.title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isExpired ? Colors.grey : Colors.black,
-                ),
-                textAlign: TextAlign.center,
+      child: Container(
+        width: double.infinity,
+        // Removemos las constraints rígidas para dar más flexibilidad
+        margin: const EdgeInsets.only(bottom: 8.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Imagen del evento con altura fija más grande
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: double.infinity,
+                height: 350, // Altura más alta para una mejor presencia visual
+                child: event.imageUrl.startsWith('http')
+                  ? Image.network(
+                      event.imageUrl,
+                      fit: BoxFit.cover, // Mantiene las proporciones naturales
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded / 
+                                  loadingProgress.expectedTotalBytes!
+                                : null,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: Icon(Icons.error_outline, size: 30),
+                          ),
+                        );
+                      },
+                    )
+                  : Image.asset(
+                      event.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: Icon(Icons.error_outline, size: 30),
+                          ),
+                        );
+                      },
+                    ),
               ),
             ),
-          ),
-        ],
+            
+            // Título del evento destacado
+            Padding(
+              padding: const EdgeInsets.only(top: 12.0, bottom: 4.0),
+              child: Center(
+                child: Text(
+                  event.title,
+                  style: TextStyle(
+                    fontSize: 17, // Aumentamos un poco el tamaño
+                    fontWeight: FontWeight.bold,
+                    color: isExpired ? Colors.grey : Colors.black,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
